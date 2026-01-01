@@ -10,6 +10,7 @@ import {
   Clock,
   Menu,
   X,
+  FileText, // Icon for PDF to Summary
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
@@ -96,12 +97,20 @@ export function Navbar() {
                   </Link>
                 </Button>
 
+                {/* NEW: PDF to Summary Button (Standalone) */}
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/tools/pdf-to-summary">
+                    <FileText className="h-4 w-4 mr-1" />
+                    PDF to Summary
+                  </Link>
+                </Button>
+
                 {session ? (
                   <>
                     <img
-                      src={session.user.image}
+                      src={session.user?.image ?? ""}
                       alt="user"
-                      className="h-8 w-8 rounded-full"
+                      className="h-8 w-8 rounded-full border border-white/20"
                     />
                     <Button size="sm" onClick={() => signOut()}>
                       Logout
@@ -134,18 +143,32 @@ export function Navbar() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-background/70 backdrop-blur-xl border-b">
           <div className="px-4 py-4 space-y-3">
-            <Link href="/">Home</Link>
-            <Link href="/upload">Upload</Link>
+            <Link href="/" className="flex items-center gap-2 py-2">
+              <Home className="h-4 w-4" />
+              Home
+            </Link>
+            <Link href="/upload" className="flex items-center gap-2 py-2">
+              <Upload className="h-4 w-4" />
+              Pdf Upload
+            </Link>
 
-            {session ? (
-              <Button className="w-full" onClick={() => signOut()}>
-                Logout
-              </Button>
-            ) : (
-              <Button className="w-full" onClick={() => signIn("google")}>
-                Login with Google
-              </Button>
-            )}
+            {/* PDF to Summary in Mobile Menu */}
+            <Link href="/tools/pdf-to-summary" className="flex items-center gap-2 py-2">
+              <FileText className="h-4 w-4" />
+              PDF to Summary
+            </Link>
+
+            <div className="border-t border-white/10 pt-3">
+              {session ? (
+                <Button className="w-full" onClick={() => signOut()}>
+                  Logout
+                </Button>
+              ) : (
+                <Button className="w-full" onClick={() => signIn("google")}>
+                  Login with Google
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -155,7 +178,7 @@ export function Navbar() {
         <div className="max-w-7xl mx-auto px-4 h-10 flex items-center gap-6 text-sm overflow-x-auto">
           <TrendingUp className="h-4 w-4 text-accent" />
           {trendingTopics.map((topic) => (
-            <Link key={topic} href={`/search?q=${topic}`}>
+            <Link key={topic} href={`/search?q=${encodeURIComponent(topic)}`}>
               {topic}
             </Link>
           ))}
