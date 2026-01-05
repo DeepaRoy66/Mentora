@@ -1,253 +1,294 @@
-"use client";
-import { useEffect, useRef, useState } from "react";
+'use client';
 
-export default function Page() {
-  const [selectedMode, setSelectedMode] = useState("summary_short");
-  const [fileData, setFileData] = useState(null);
-  const [quizData, setQuizData] = useState([]);
-  const [userAnswers, setUserAnswers] = useState({});
-  const [isSubmitted, setIsSubmitted] = useState(false);
+import { useState, useRef } from 'react';
+
+export default function StudyAssistant() {
+  // State Management
+  const [selectedMode, setSelectedMode] = useState('summary_short');
+  const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+  const [resultText, setResultText] = useState(''); // For summaries
+  const [quizData, setQuizData] = useState([]); // For MCQs
+  const [userAnswers, setUserAnswers] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [score, setScore] = useState(0);
+  const [visibleHints, setVisibleHints] = useState({});
 
+  // Refs
   const fileInputRef = useRef(null);
 
-  const handleFile = (file) => {
-    if (!file) return;
-    if (file.type !== "application/pdf") {
+  // --- Handlers ---
+
+  const handleFileClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      validateAndSetFile(e.target.files[0]);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      validateAndSetFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const validateAndSetFile = (file) => {
+    if (file.type !== 'application/pdf') {
       alert("PDF only.");
       return;
     }
-    setFileData(file);
-    document.getElementById("fileNameDisplay").textContent = file.name;
+    setFile(file);
+    // Reset previous results
+    setResultText('');
+    setQuizData([]);
+    setUserAnswers({});
+    setSubmitted(false);
   };
 
-  const selectMode = (mode, element) => {
+  const selectMode = (mode) => {
     setSelectedMode(mode);
-    document.querySelectorAll(".mode-card").forEach((c) =>
-      c.classList.remove("active")
-    );
-    element.classList.add("active");
-
-    if (fileData) processFile();
+    // Auto regenerate if file exists (Same functionality as original)
+    if (file) {
+      processFile(mode);
+    }
   };
 
-  const processFile = async () => {
-    if (!fileData) return;
+  const processFile = async (specificMode = selectedMode) => {
+    if (!file) return;
 
     setLoading(true);
-    setShowResult(false);
+    setResultText('');
+    setQuizData([]);
+    setSubmitted(false);
+    setUserAnswers({});
+    setVisibleHints({});
 
     const formData = new FormData();
-    formData.append("file", fileData);
-    formData.append("mode", selectedMode);
+    formData.append('file', file);
+    formData.append('mode', specificMode);
 
     try {
-      const response = await fetch("http://localhost:8000/process_pdf", {
-        method: "POST",
+      const response = await fetch('http://localhost:8000/process_pdf', {
+        method: 'POST',
         body: formData,
       });
 
+      if (!response.ok) throw new Error('Server Error');
+
       const result = await response.json();
 
-      setLoading(false);
-      setShowResult(true);
-
-      if (selectedMode === "mcq") {
-        const parsed = JSON.parse(result.data);
-        setQuizData(parsed);
-        setUserAnswers({});
-        setIsSubmitted(false);
+      if (specificMode === 'mcq') {
+        try {
+          const parsedQuiz = JSON.parse(result.data);
+          setQuizData(parsedQuiz);
+        } catch (e) {
+          alert("Quiz generation failed.");
+          console.error(e);
+        }
       } else {
-        document.getElementById("summaryView").innerText = result.data;
-        document.getElementById("summaryView").style.display = "block";
-        document.getElementById("activeQuizView").style.display = "none";
+        setResultText(result.data);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       alert("Server Error.");
+    } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (selectedMode === "mcq" && quizData.length) {
-      renderQuiz();
-    }
-  }, [quizData]);
-
-  const renderQuiz = () => {
-    const container = document.getElementById("activeQuizView");
-    container.innerHTML = "";
-    document.getElementById("summaryView").style.display = "none";
-    container.style.display = "block";
-
-    quizData.forEach((q, index) => {
-      const card = document.createElement("div");
-      card.className = "quiz-card";
-
-      let optionsHTML = "";
-      Object.entries(q.options).forEach(([key, val]) => {
-        optionsHTML += `
-          <div class="option" id="opt-${index}-${key}">
-            <strong>${key}:</strong> ${val}
-          </div>
-        `;
-      });
-
-      card.innerHTML = `
-        <div class="q-text">${index + 1}. ${q.question}</div>
-        ${optionsHTML}
-        <span class="hint-toggle">Show Hint</span>
-        <div class="hint-text">${q.hint}</div>
-      `;
-
-      container.appendChild(card);
-
-      card.querySelectorAll(".option").forEach((opt) => {
-        opt.onclick = () => selectOption(index, opt.id.split("-")[2]);
-      });
-
-      card.querySelector(".hint-toggle").onclick = () => {
-        const hint = card.querySelector(".hint-text");
-        hint.style.display = hint.style.display === "block" ? "none" : "block";
-      };
-    });
-
-    const submitBtn = document.createElement("button");
-    submitBtn.className = "btn";
-    submitBtn.innerText = "Submit Quiz";
-    submitBtn.onclick = calculateScore;
-    container.appendChild(submitBtn);
+  const handleOptionClick = (qIndex, key) => {
+    if (submitted) return;
+    setUserAnswers((prev) => ({ ...prev, [qIndex]: key }));
   };
 
-  const selectOption = (qIndex, val) => {
-    if (isSubmitted) return;
-
-    setUserAnswers((prev) => ({ ...prev, [qIndex]: val }));
-
-    ["A", "B", "C", "D"].forEach((k) => {
-      const el = document.getElementById(`opt-${qIndex}-${k}`);
-      if (el) el.classList.remove("correct-selected", "wrong-selected");
-    });
-
-    document
-      .getElementById(`opt-${qIndex}-${val}`)
-      .classList.add("correct-selected");
+  const toggleHint = (index) => {
+    setVisibleHints((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
   };
 
-  const calculateScore = () => {
-    if (isSubmitted) return;
-    setIsSubmitted(true);
+  const handleSubmit = () => {
+    if (submitted) return;
 
-    let score = 0;
-
+    let currentScore = 0;
     quizData.forEach((q, index) => {
-      const userSelected = userAnswers[index];
-      const correctAns = q.correct;
-
-      ["A", "B", "C", "D"].forEach((k) => {
-        const el = document.getElementById(`opt-${index}-${k}`);
-        if (el) el.onclick = null;
-      });
-
-      if (userSelected === correctAns) score++;
-      else {
-        const correctEl = document.getElementById(
-          `opt-${index}-${correctAns}`
-        );
-        if (correctEl) correctEl.classList.add("reveal-correct");
+      if (userAnswers[index] === q.correct) {
+        currentScore++;
       }
     });
 
-    const container = document.getElementById("activeQuizView");
-    const resultMsg = document.createElement("div");
-    resultMsg.style.textAlign = "center";
-    resultMsg.style.fontSize = "1.5rem";
-    resultMsg.style.fontWeight = "bold";
-    resultMsg.style.margin = "20px 0";
-    resultMsg.innerText = `Score: ${score} / 10`;
+    setScore(currentScore);
+    setSubmitted(true);
+  };
 
-    container.lastElementChild.replaceWith(resultMsg);
+  const resetApp = () => {
+    window.location.reload();
+  };
+
+  // --- Helper to determine Option Classes ---
+  const getOptionClass = (qIndex, key, correctKey) => {
+    const isSelected = userAnswers[qIndex] === key;
+    const baseClass = "block p-3 mb-2 bg-slate-50 border border-gray-200 rounded cursor-pointer transition-colors duration-200 hover:bg-gray-100";
+    
+    if (!submitted) {
+      return isSelected 
+        ? `${baseClass} bg-emerald-500 text-white border-emerald-500` 
+        : baseClass;
+    } else {
+      // Review Mode
+      if (key === correctKey) {
+        return `${baseClass} bg-emerald-500 text-white border-emerald-500 opacity-80`;
+      } else if (isSelected && key !== correctKey) {
+        return `${baseClass} bg-red-500 text-white border-red-500`;
+      } else {
+        return `${baseClass} opacity-50`;
+      }
+    }
   };
 
   return (
-    <>
-      <style jsx global>{`/* SAME CSS – UNCHANGED */ 
-        ${require("fs").readFileSync(
-          process.cwd() + "/styles.css",
-          "utf8"
-        )}
-      `}</style>
-
-      <div className="app-container">
-        <header>
-          <h1>AI Study Assistant</h1>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex justify-center items-center p-5 font-sans text-gray-800">
+      <div className="w-full max-w-[700px] bg-white rounded-xl shadow-xl overflow-hidden flex flex-col">
+        
+        {/* Header */}
+        <header className="p-6 border-b border-gray-200 text-center">
+          <h1 className="text-2xl font-bold text-indigo-600">AI Study Assistant</h1>
         </header>
 
-        <main>
-          <div
-            className="upload-zone"
-            onClick={() => fileInputRef.current.click()}
+        <main className="p-[30px]">
+          
+          {/* Upload Zone */}
+          <div 
+            className="border-2 border-dashed border-slate-300 rounded-lg p-10 text-center cursor-pointer relative bg-slate-50 transition-colors duration-200 hover:border-indigo-600 hover:bg-indigo-50"
+            onClick={handleFileClick}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDrop}
           >
-            <input
+            <input 
+              type="file" 
               ref={fileInputRef}
-              type="file"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               accept=".pdf"
-              hidden
-              onChange={(e) => handleFile(e.target.files[0])}
+              onChange={handleFileChange}
             />
-            <span className="file-name" id="fileNameDisplay">
-              Click to Upload PDF
+            <span className="font-semibold text-lg text-gray-700">
+              {file ? file.name : "Click to Upload PDF"}
             </span>
           </div>
 
-          <div className="mode-grid">
-            <div
-              className="mode-card active"
-              onClick={(e) => selectMode("summary_short", e.target)}
-            >
-              Short
-            </div>
-            <div
-              className="mode-card"
-              onClick={(e) => selectMode("summary_long", e.target)}
-            >
-              Long
-            </div>
-            <div
-              className="mode-card"
-              onClick={(e) => selectMode("mcq", e.target)}
-            >
-              MCQ Quiz
-            </div>
+          {/* Mode Grid */}
+          <div className="grid grid-cols-3 gap-2.5 my-5">
+            {[
+              { id: 'summary_short', label: 'Short' },
+              { id: 'summary_long', label: 'Long' },
+              { id: 'mcq', label: 'MCQ Quiz' }
+            ].map((mode) => (
+              <div
+                key={mode.id}
+                onClick={() => selectMode(mode.id)}
+                className={`p-2.5 border-2 rounded text-center cursor-pointer text-sm transition-colors duration-200 ${
+                  selectedMode === mode.id
+                    ? 'border-indigo-600 bg-indigo-100 text-indigo-600 font-semibold'
+                    : 'border-gray-200 text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                {mode.label}
+              </div>
+            ))}
           </div>
 
-          <button className="btn" disabled={!fileData} onClick={processFile}>
+          {/* Generate Button */}
+          <button
+            onClick={() => processFile()}
+            disabled={!file || loading}
+            className="w-full py-[14px] bg-indigo-600 text-white rounded-md text-base font-semibold cursor-pointer hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed disabled:opacity-70 transition-colors"
+          >
             Generate Content
           </button>
 
+          {/* Loader */}
           {loading && (
-            <div className="loader">
-              <div className="spinner"></div>
-              Analyzing whole PDF...
+            <div className="text-center my-5 text-gray-500">
+              <div className="border-4 border-slate-200 border-t-indigo-600 rounded-full w-6 h-6 animate-spin mx-auto mb-2.5"></div>
+              <span>Analyzing whole PDF...</span>
             </div>
           )}
 
-          {showResult && (
-            <div id="resultArea" style={{ marginTop: "25px" }}>
-              <div id="summaryView" className="summary-box"></div>
-              <div id="activeQuizView"></div>
-              <button
-                className="btn btn-outline"
-                onClick={() => window.location.reload()}
+          {/* Result Area */}
+          {(resultText || quizData.length > 0) && (
+            <div className="mt-7">
+              
+              {/* Summary View */}
+              {resultText && (
+                <div className="bg-slate-50 p-5 rounded-lg leading-relaxed whitespace-pre-wrap max-h-[500px] overflow-y-auto">
+                  {resultText}
+                </div>
+              )}
+
+              {/* Quiz View */}
+              {quizData.length > 0 && (
+                <div className="flex flex-col gap-0">
+                  {quizData.map((q, index) => (
+                    <div key={index} className="border border-gray-200 p-5 rounded-lg mb-4">
+                      <div className="font-semibold mb-4">{index + 1}. {q.question}</div>
+                      
+                      {/* Options */}
+                      {Object.entries(q.options).map(([key, val]) => (
+                        <div
+                          key={key}
+                          onClick={() => handleOptionClick(index, key)}
+                          className={getOptionClass(index, key, q.correct)}
+                        >
+                          <strong>{key}:</strong> {val}
+                        </div>
+                      ))}
+
+                      {/* Hint Toggle */}
+                      <span 
+                        onClick={() => toggleHint(index)}
+                        className="text-xs text-indigo-600 cursor-pointer underline mt-2.5 inline-block"
+                      >
+                        {visibleHints[index] ? 'Hide Hint' : 'Show Hint'}
+                      </span>
+                      
+                      {visibleHints[index] && (
+                        <div className="text-sm text-gray-500 bg-amber-50 p-2.5 rounded mt-2">
+                          {q.hint}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Submit Button / Score */}
+                  {!submitted ? (
+                    <button onClick={handleSubmit} className="w-full py-[14px] bg-indigo-600 text-white rounded-md text-base font-semibold cursor-pointer hover:bg-indigo-700">
+                      Submit Quiz
+                    </button>
+                  ) : (
+                    <div className="text-center text-2xl font-bold my-5">
+                      Score: {score} / {quizData.length}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* New File Button */}
+              <button 
+                onClick={resetApp}
+                className="w-full mt-4 py-2 bg-transparent border border-gray-200 text-gray-800 rounded font-semibold cursor-pointer hover:bg-gray-50"
               >
                 Upload New PDF
               </button>
             </div>
           )}
+
         </main>
       </div>
-    </>
+    </div>
   );
 }
