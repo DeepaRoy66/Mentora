@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Navbar } from "../components/navbar"
+
 import { Button } from "../components/ui/button"
 import { Card, CardContent } from "../components/ui/card"
 import { BookOpen, Users, GraduationCap, ArrowRight } from "lucide-react"
@@ -10,7 +10,7 @@ import { motion } from "framer-motion"
 export default function LandingPage() {
   return (
     <div className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-[#F5F7FA] via-white to-[#EEF3F9]">
-      <Navbar />
+      
 
       {/* HERO SECTION */}
       <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-32">
