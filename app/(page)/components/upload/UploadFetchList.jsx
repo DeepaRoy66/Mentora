@@ -1,267 +1,250 @@
-"use client"
-import { useState } from 'react';
-import { BiSearch, BiPencil, BiTrash, BiX, BiLinkExternal, BiErrorAlt } from 'react-icons/bi';
+"use client";
+import { useState, useEffect } from 'react';
+import { BiCloudUpload, BiDotsVerticalRounded, BiTrash, BiDownload, BiFileBlank, BiSelectMultiple, BiLeftArrow, BiRightArrow, BiEdit, BiCheck } from 'react-icons/bi';
 
-export default function UploadFetchList({ initialUploads, categories }) {
+export default function UploadList({ categories, initialUploads, initialPage, initialTotalPages, onUploadClick }) {
   const [list, setList] = useState(initialUploads);
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [cat, setCat] = useState('All');
+  const [page, setPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
   
-  // Edit State
-  const [editItem, setEditItem] = useState(null);
-  const [tagInput, setTagInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
-  // Delete State (Simplified)
-  const [deleteId, setDeleteId] = useState(null); 
-  const [deleting, setDeleting] = useState(false);
-
-  // 1. Search Logic
-  const filterData = async () => {
-    const res = await fetch(`/api/uploads?search=${query}&category=${cat}`);
-    const data = await res.json();
-    setList(data);
+  const showNotification = (msg, type = 'error') => {
+    setNotification({ msg, type });
+    setTimeout(() => setNotification(null), 3000);
   };
 
-  // 2. Delete Logic
-  const initiateDelete = (id) => {
-    setDeleteId(id);
-  };
-
-  const confirmDelete = async () => {
-    setDeleting(true);
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/uploads/${deleteId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/uploads?search=${query}&category=${cat}&page=${page}`);
       if (res.ok) {
-        setList(list.filter(item => item._id !== deleteId));
-        setDeleteId(null); // Close modal
+        const data = await res.json();
+        setList(data.uploads || []);
+        setTotalPages(data.totalPages || 1);
       } else {
-        alert("Failed to delete file");
+        setList([]);
       }
     } catch (err) {
       console.error(err);
-      alert("Error deleting file");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // 3. Edit Tags Logic
-  const handleTagKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const val = tagInput.trim().replace(',', '');
-      const currentTags = Array.isArray(editItem.tags) ? editItem.tags : [];
-      
-      if (val && !currentTags.includes(val)) {
-        setEditItem({ ...editItem, tags: [...currentTags, val] });
-        setTagInput('');
-      }
-    }
-  };
-
-  // 4. Update Logic
-  const handleUpdate = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/uploads/${editItem._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editItem), // Sends { title, description, commentsEnabled... }
-      });
-
-      if (res.ok) {
-        const updated = await res.json();
-        setList(list.map(item => item._id === updated._id ? updated : item));
-        setEditItem(null);
-      } else {
-        const err = await res.json();
-        alert(`Error: ${err.error || "Failed to update"}`);
-      }
-    } catch (error) {
-      alert("Network error while updating");
+      setList([]);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    const handler = setTimeout(() => { setPage(1); fetchData(); }, 500);
+    return () => clearTimeout(handler);
+  }, [query, cat]);
+
+  useEffect(() => {
+    if (page !== initialPage) { fetchData(); }
+  }, [page]);
+
+  const toggleSelect = (id) => {
+    if (selectedIds.includes(id)) { setSelectedIds(selectedIds.filter(sid => sid !== id)); setSelectAll(false); } 
+    else { setSelectedIds([...selectedIds, id]); }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectAll) { setSelectedIds([]); setSelectAll(false); } 
+    else { setSelectedIds(list.map(item => item._id)); setSelectAll(true); }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedIds.length} files?`)) return;
+    await Promise.all(selectedIds.map(id => fetch(`/api/uploads/${id}`, { method: 'DELETE' })));
+    setSelectedIds(); setSelectAll(false); fetchData();
+    showNotification(`Deleted ${selectedIds.length} files`, 'success');
+  };
+
+  const handleBulkDownload = () => {
+    selectedIds.forEach(id => {
+      const item = list.find(i => i._id === id);
+      if (item) forceDownload(item.pdfUrl, item.title);
+    });
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this file?")) return;
+    const res = await fetch(`/api/uploads/${id}`, { method: 'DELETE' });
+    if (res.ok) { fetchData(); showNotification("Deleted successfully", "success"); }
+    else showNotification("Failed to delete");
+  };
+
+  const forceDownload = async (url, filename) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `${filename}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleVisibilityChange = async (id, newVis) => {
+    try {
+      const res = await fetch(`/api/uploads/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility: newVis })
+      });
+      if (res.ok) {
+        setList(list.map(i => i._id === id ? { ...i, visibility: newVis } : i));
+        showNotification("Visibility updated", "success");
+      } else {
+        throw new Error("Update failed");
+      }
+    } catch (e) {
+      showNotification("Failed to update visibility");
+    }
+  };
+
   return (
-    <section className="space-y-6">
-      {/* Search Bar - Responsive */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
-          <BiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+    <div className="bg-gray-100 min-h-screen w-full font-sans">
+      {/* Notification Popup */}
+      {notification && (
+        <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-bold text-sm z-[100] animate-bounce ${notification.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
+          {notification.msg}
+        </div>
+      )}
+
+      {/* TOP BAR */}
+      <div className="sticky top-0 bg-white z-20 border-b border-gray-200 p-4 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-sm">
+        <div className="relative w-full sm:w-96">
           <input 
-            className="w-full p-4 pl-12 bg-white border-2 border-gray-200 text-black rounded-2xl outline-none focus:border-black transition-all" 
-            placeholder="Search titles or tags..." 
+            type="text" 
+            placeholder="Filter by title, tag..." 
+            className="w-full bg-[#F1F1F1] hover:bg-[#E5E5E5] focus:bg-[#FFFFFF] border border-transparent focus:border-gray-300 rounded-md px-4 py-2 outline-none text-sm transition-all text-black"
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && filterData()}
+            onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <select 
-          className="p-4 bg-white border-2 border-gray-200 text-black rounded-2xl outline-none focus:border-black font-bold"
-          onChange={e => setCat(e.target.value)}
-        >
-          <option value="All">All Categories</option>
-          {categories.map(c => <option key={c._id} value={c.name}>{c.name}</option>)}
-        </select>
-        <button onClick={filterData} className="bg-black text-white px-8 py-4 rounded-2xl font-black hover:bg-gray-800 transition-all">
-          Search
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <select 
+            className="bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer mr-2 border border-gray-300 rounded px-2 py-2"
+            onChange={(e) => setCat(e.target.value)}
+          >
+            <option value="All">Filter: All</option>
+            {categories.map(c => <option key={c._id} value={c.name}>{c.name}</option>)}
+          </select>
+          <button 
+            onClick={onUploadClick}
+            className="flex items-center gap-2 bg-[#065FD4] hover:bg-[#0A4EB9] text-white text-sm font-medium px-4 py-2 rounded-md transition-colors ml-auto shadow-md"
+          >
+            <BiCloudUpload size={18} /> UPLOAD
+          </button>
+        </div>
       </div>
 
-      {/* List Area */}
-      <div className="grid gap-4">
-        {list.map(item => (
-          <div key={item._id} className="bg-white p-5 rounded-[2rem] border-2 border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-black transition-all shadow-sm">
-            <div 
-              className="cursor-pointer group flex-1" 
-              onClick={() => window.open(item.pdfUrl, '_blank')}
-            >
-              <h3 className="font-black text-black text-xl group-hover:text-blue-600 flex items-center gap-2">
-                {item.title} <BiLinkExternal className="opacity-0 group-hover:opacity-100 transition-opacity" size={16}/>
-              </h3>
-              <div className="flex flex-wrap gap-2 mt-2">
-                <span className="text-xs font-bold bg-gray-100 text-gray-700 px-3 py-1 rounded-full">{item.category}</span>
-                {item.description && (
-                  <span className="text-xs font-normal text-gray-500 mt-1 truncate max-w-md">
-                    {item.description}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-2 w-full md:w-auto">
-              <button 
-                onClick={() => setEditItem(item)}
-                className="flex-1 md:flex-none p-4 bg-gray-100 text-black rounded-2xl hover:bg-black hover:text-white transition-all"
-              >
-                <BiPencil size={20} className="mx-auto" />
-              </button>
-              <button 
-                onClick={() => initiateDelete(item._id)} 
-                className="flex-1 md:flex-none p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all"
-              >
-                <BiTrash size={20} className="mx-auto" />
-              </button>
-            </div>
+      {/* BULK ACTIONS */}
+      {selectedIds.length > 0 && (
+        <div className="bg-[#F9FAFB] border-b border-gray-300 px-4 py-2 flex items-center justify-between text-sm sticky top-[73px] z-10 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="font-bold text-gray-700">{selectedIds.length} selected</span>
+            <button onClick={handleBulkDownload} className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-gray-100 border border-gray-300 rounded text-gray-700"><BiDownload /> Download</button>
+            <button onClick={handleBulkDelete} className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-red-50 hover:border-red-200 hover:text-red-600 border border-gray-300 rounded text-gray-700"><BiTrash /> Delete</button>
           </div>
-        ))}
+          <button onClick={() => { setSelectedIds([]); setSelectAll(false); }} className="text-gray-500 hover:text-black font-bold">Deselect all</button>
+        </div>
+      )}
+
+      {/* TABLE HEADER */}
+      <div className="grid grid-cols-[40px_1fr_40px] md:grid-cols-[40px_2fr_120px_120px_120px_40px] gap-4 px-4 py-3 border-b border-gray-200 bg-white text-xs font-bold text-gray-500 uppercase tracking-wider">
+        <div onClick={toggleSelectAll} className="cursor-pointer flex justify-center">
+          {selectAll ? <BiSelectMultiple size={18} className="text-blue-600" /> : <div className="w-[14px] h-[14px] border-2 border-gray-400 rounded-sm" />}
+        </div>
+        <div>PDF</div>
+        <div className="hidden md:block">Category</div> {/* Hide on Mobile */}
+        <div className="hidden md:block">Visibility</div>
+        <div className="hidden md:block">Date</div>
+        <div></div>
       </div>
 
-      {/* EDIT MODAL */}
-      {editItem && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-black">Edit Document</h2>
-              <button onClick={() => setEditItem(null)} className="text-black hover:bg-gray-100 p-2 rounded-full transition-colors">
-                <BiX size={30} />
-              </button>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <label className="text-sm font-black text-black block mb-2">Title</label>
-                <input 
-                  className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl text-black font-bold outline-none focus:border-black"
-                  value={editItem.title}
-                  onChange={e => setEditItem({...editItem, title: e.target.value})}
-                />
+      {/* TABLE BODY */}
+      <div className="flex flex-col pb-20">
+        {loading ? (
+          <div className="p-10 text-center text-gray-500 text-sm bg-white">Updating...</div>
+        ) : list.length === 0 ? (
+          <div className="p-10 text-center text-gray-500 text-sm bg-white">No files found.</div>
+        ) : (
+          list.map((item) => (
+            <div key={item._id} className="group grid grid-cols-[40px_1fr_40px] md:grid-cols-[40px_2fr_120px_120px_120px_40px] gap-4 px-4 py-4 border-b border-gray-200 bg-white hover:bg-gray-50 items-center transition-colors">
+              {/* Checkbox */}
+              <div onClick={() => toggleSelect(item._id)} className="cursor-pointer flex justify-center">
+                {selectedIds.includes(item._id) ? <BiSelectMultiple size={18} className="text-blue-600" /> : <div className="w-[14px] h-[14px] border-2 border-gray-400 rounded-sm group-hover:border-gray-600" />}
               </div>
 
-              <div>
-                <label className="text-sm font-black text-black block mb-2">Description</label>
-                <textarea 
-                  rows="3"
-                  className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl text-black font-bold outline-none focus:border-black placeholder:text-gray-400"
-                  value={editItem.description || ""} 
-                  onChange={e => setEditItem({...editItem, description: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-black text-black block mb-2">Tags (Enter to add)</label>
-                <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus-within:border-black">
-                  {(editItem.tags || []).map((tag, i) => (
-                    <span key={i} className="bg-black text-white px-3 py-1 rounded-lg flex items-center gap-1 text-sm font-bold">
-                      {tag} <BiX className="cursor-pointer" onClick={() => setEditItem({...editItem, tags: editItem.tags.filter((_, idx) => idx !== i)})} />
-                    </span>
-                  ))}
-                  <input 
-                    className="flex-1 bg-transparent outline-none text-black font-bold p-1"
-                    value={tagInput}
-                    onChange={e => setTagInput(e.target.value)}
-                    onKeyDown={handleTagKeyDown}
-                  />
+              {/* PDF Title - Mobile Layout */}
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="flex-shrink-0 text-gray-400 hover:text-red-500">
+                  <BiFileBlank size={32} />
+                </div>
+                <div className="flex flex-col overflow-hidden w-full">
+                  <span className="text-sm font-medium text-gray-900 truncate w-full hover:underline cursor-pointer" onClick={() => window.open(item.pdfUrl, '_blank')}>{item.title}</span>
                 </div>
               </div>
 
-              <div>
-                <label className="text-sm font-black text-black block mb-2">Category</label>
+              {/* Category Column - Hide on Mobile */}
+              <div className="text-sm text-gray-700 font-medium hidden md:block truncate">
+                {item.category}
+              </div>
+
+              {/* Visibility Select - Hide on Mobile */}
+              <div className="relative hidden md:block">
                 <select 
-                  className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl text-black font-bold outline-none focus:border-black"
-                  value={editItem.category}
-                  onChange={e => setEditItem({...editItem, category: e.target.value})}
+                  value={item.visibility}
+                  onChange={(e) => handleVisibilityChange(item._id, e.target.value)}
+                  className="w-full text-sm font-medium text-gray-600 bg-transparent border border-transparent focus:border-blue-500 focus:bg-white rounded cursor-pointer outline-none"
                 >
-                  {categories.map(c => <option key={c._id} value={c.name}>{c.name}</option>)}
+                  <option value="Public">Public</option>
+                  <option value="Private">Private</option>
+                  {/* Removed Unlisted Option */}
                 </select>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><BiEdit size={12}/></div>
               </div>
 
-              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border-2 border-gray-100 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-5 h-5 accent-black cursor-pointer"
-                  checked={editItem.commentsEnabled} 
-                  onChange={e => setEditItem({...editItem, commentsEnabled: e.target.checked})}
-                />
-                <label className="font-black text-black cursor-pointer select-none">Allow user comments on this PDF</label>
+              {/* Date - Hide on Mobile */}
+              <div className="text-sm text-gray-500 hidden md:block">
+                {new Date(item.createdAt).toLocaleDateString()}
+              </div>
+
+              {/* Actions */}
+              <div className="relative flex justify-end">
+                <button onClick={() => setOpenMenuId(openMenuId === item._id ? null : item._id)} className="p-1 text-gray-500 hover:bg-gray-200 rounded-full"><BiDotsVerticalRounded size={24} /></button>
+                {openMenuId === item._id && (
+                  <div className="absolute right-0 top-8 bg-white shadow-xl border border-gray-200 rounded-md w-40 z-50 overflow-hidden">
+                    <button onClick={() => forceDownload(item.pdfUrl, item.title)} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-medium text-gray-700 flex items-center gap-2"><BiDownload /> Download</button>
+                    <button onClick={() => onUploadClick(item)} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-medium text-gray-700 flex items-center gap-2"><BiEdit /> Edit Details</button>
+                    <button onClick={() => handleDelete(item._id)} className="w-full text-left px-4 py-2 hover:bg-red-50 text-sm font-medium text-red-600 flex items-center gap-2"><BiTrash /> Delete</button>
+                  </div>
+                )}
               </div>
             </div>
+          ))
+        )}
+      </div>
 
-            <button 
-              onClick={handleUpdate}
-              disabled={loading}
-              className="w-full mt-8 py-4 bg-black text-white rounded-2xl font-black text-lg hover:bg-gray-800 transition-all disabled:bg-gray-400"
-            >
-              {loading ? "Updating..." : "Save Changes"}
-            </button>
-          </div>
+      {/* PAGINATION */}
+      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-3 flex justify-between items-center text-sm font-medium text-gray-600 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <div>Page {page} of {totalPages}</div>
+        <div className="flex gap-2">
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 hover:bg-gray-100 disabled:opacity-50 rounded-full"><BiLeftArrow /></button>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 hover:bg-gray-100 disabled:opacity-50 rounded-full"><BiRightArrow /></button>
         </div>
-      )}
-
-      {/* CUSTOM DELETE MODAL (Simple - No Typing) */}
-      {deleteId && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-red-100 text-center">
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BiErrorAlt size={32} />
-            </div>
-            
-            <h2 className="text-2xl font-black text-black mb-2">Delete Document?</h2>
-            <p className="text-gray-600 font-medium mb-8">
-              This action cannot be undone. Are you sure you want to permanently delete this document?
-            </p>
-
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setDeleteId(null)}
-                className="flex-1 py-3 bg-white border-2 border-gray-200 text-black rounded-xl font-bold hover:bg-gray-50 transition-all"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-black hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all flex justify-center items-center gap-2"
-              >
-                {deleting ? 'Deleting...' : 'Yes, Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
+      </div>
+    </div>
   );
 }
