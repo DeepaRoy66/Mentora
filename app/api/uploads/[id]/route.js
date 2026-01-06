@@ -1,44 +1,39 @@
 import connectionToDatabase from "@/lib/database/mongoose";
-import Upload from "@/lib/models/Upload";
+import PdfUpload from "@/lib/models/PdfUpload"; 
 import { NextResponse } from "next/server";
-import { generateCustomSlug, isAllowedUser } from "@/lib/utils";
+import { generateCustomSlug } from "@/lib/utils";
 import { getServerSession } from "next-auth";
 import mongoose from "mongoose";
-
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
 
 export async function PUT(req, { params }) {
   try {
-    const session = await getServerSession();
-    
-
-    if (!session || !isAllowedUser(session.user?.email)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     await connectionToDatabase();
-    const { id } = params; // This gets the ID from the URL
+    const { id } = params; 
     const data = await req.json();
 
-    
-    const newSlug = generateCustomSlug(data.title, id);
+    const existingDoc = await PdfUpload.findById(id);
+    if (!existingDoc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (existingDoc.uploaderEmail !== session.user.email) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const updatedUpload = await Upload.findByIdAndUpdate(
-      id,
-      { 
-        title: data.title,
-        description: data.description, // Fixed
-        tags: data.tags, 
-        category: data.category,
-        commentsEnabled: data.commentsEnabled, // Fixed
-        slug: newSlug 
-      },
-      { new: true } 
-    );
+    // --- FIX: Fallback to existing title if data.title is undefined ---
+    const titleToUse = data.title || existingDoc.title;
+    const newSlug = generateCustomSlug(titleToUse, id);
+    // ----------------------------------------------------
 
-    if (!updatedUpload) {
-      return NextResponse.json({ error: "Document not found" }, { status: 404 });
-    }
+    const updateData = {};
+    if (data.title) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.tags) updateData.tags = data.tags;
+    if (data.category) updateData.category = data.category;
+    if (data.commentsEnabled !== undefined) updateData.commentsEnabled = data.commentsEnabled;
+    if (data.visibility) updateData.visibility = data.visibility;
+    if (titleToUse) updateData.slug = newSlug; // Always update slug if title changes
 
+    const updatedUpload = await PdfUpload.findByIdAndUpdate(id, updateData, { new: true });
     return NextResponse.json(updatedUpload);
   } catch (error) {
     console.error("EDIT API ERROR:", error);
@@ -46,21 +41,17 @@ export async function PUT(req, { params }) {
   }
 }
 
-// --- THE DELETE API (DELETE) ---
 export async function DELETE(req, { params }) {
   try {
-    const session = await getServerSession();
-    if (!session || !isAllowedUser(session.user?.email)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     await connectionToDatabase();
-    const deleted = await Upload.findByIdAndDelete(params.id);
+    const docToDelete = await PdfUpload.findById(params.id);
+    if (!docToDelete) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (docToDelete.uploaderEmail !== session.user.email) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    if (!deleted) {
-      return NextResponse.json({ error: "Document not found" }, { status: 404 });
-    }
-
+    await PdfUpload.findByIdAndDelete(params.id);
     return NextResponse.json({ message: "Deleted successfully" });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

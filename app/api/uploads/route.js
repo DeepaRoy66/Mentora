@@ -1,45 +1,45 @@
 import connectionToDatabase from "@/lib/database/mongoose";
-import Upload from "@/lib/models/Upload";
+import PdfUpload from "@/lib/models/PdfUpload"; 
 import { NextResponse } from "next/server";
-import { generateCustomSlug, isAllowedUser } from "@/lib/utils";
+import { generateCustomSlug } from "@/lib/utils";
 import { getServerSession } from "next-auth";
 import mongoose from "mongoose";
-import Category from "@/lib/models/Category";
-// Import your auth options (adjust path to where your [...nextauth] is)
- import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(); // Add authOptions inside () if using NextAuth
-    
-    // 1. Permission & Auth Check
-    if (!session || !isAllowedUser(session.user?.email)) {
-      return NextResponse.json({ error: "Unauthorized: Access Denied" }, { status: 403 });
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     await connectionToDatabase();
     const data = await req.json();
 
-    // 2. Validation
+    // Validation
     if (!data.title || !data.pdfUrl) {
       return NextResponse.json({ error: "Title and PDF are required" }, { status: 400 });
     }
 
+    // Tag Limit Check
+    const tagsArray = Array.isArray(data.tags) ? data.tags : [];
+    if (tagsArray.join('').length > 500) {
+      return NextResponse.json({ error: "Tags exceed 500 characters" }, { status: 400 });
+    }
+
     const tempId = new mongoose.Types.ObjectId();
-    
-    // 3. Slug Generation (Uses Title + ID + Random)
     const slug = generateCustomSlug(data.title, tempId.toString());
 
-    const newUpload = await Upload.create({
+    const newUpload = await PdfUpload.create({
       title: data.title,
-      description: data.desc || "",
+      description: data.description || "", 
       pdfUrl: data.pdfUrl,
-      tags: Array.isArray(data.tags) ? data.tags : [], 
+      tags: tagsArray, 
       category: data.category || "Others",
-      commentsEnabled: data.comments ?? true,
+      commentsEnabled: data.commentsEnabled,
+      visibility: data.visibility || 'Public', // Save Visibility
       slug: slug,
-      uploaderEmail: session.user.email,
-      isAdmin: true,
+      uploaderEmail: session.user.email, 
       _id: tempId
     });
 
@@ -52,12 +52,26 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     await connectionToDatabase();
     const { searchParams } = new URL(req.url);
+    
+    // Pagination Params
+    const page = parseInt(searchParams.get("page")) || 1;
+    const limit = 30; // Fixed Limit as requested
+    const skip = (page - 1) * limit;
+
     const search = searchParams.get("search");
     const cat = searchParams.get("category");
 
-    let query = {};
+    // Base Query
+    let query = { uploaderEmail: session.user.email };
+
+    // Filters
     if (cat && cat !== "All") query.category = cat;
     if (search) {
       query.$or = [
@@ -66,8 +80,20 @@ export async function GET(req) {
       ];
     }
 
-    const data = await Upload.find(query).sort({ createdAt: -1 });
-    return NextResponse.json(data);
+    // Fetch Data & Count Total (for pagination)
+    const data = await PdfUpload.find(query)
+      .sort({ createdAt: -1 }) // Newest first
+      .skip(skip)
+      .limit(limit);
+
+    const totalItems = await PdfUpload.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / limit);
+    
+    return NextResponse.json({ 
+      uploads: data, 
+      currentPage: page,
+      totalPages: totalPages 
+    });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -3,7 +3,8 @@ import GoogleProvider from "next-auth/providers/google";
 import connectionToDatabase from "@/lib/database/mongoose";
 import User from "@/lib/models/user";
 
-const handler = NextAuth({
+
+export const authOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -65,7 +66,6 @@ const handler = NextAuth({
       return token;
     },
 
-
     async session({ session, token }) {
       if (session.user) {
         session.user.name = token.name;
@@ -77,6 +77,9 @@ const handler = NextAuth({
       return session;
     },
   },
-});
+};
+
+// 2. Pass the exported authOptions to NextAuth
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };

@@ -1,27 +1,34 @@
-import UploadPdfSection from "../components/upload/UploadPdfSection";
-import UploadFetchList from "../components/upload/UploadFetchList";
+import UploadContent from "../components/upload/UploadContent";
+import { cookies } from "next/headers"; // Required for Server Auth
 
 async function getData() {
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const cookieStore = cookies();
+  
+  // Fetch BOTH on Server Side passing cookies
   const [upRes, catRes] = await Promise.all([
-    fetch(`${baseUrl}/api/uploads`, { cache: 'no-store' }),
+    fetch(`${baseUrl}/api/uploads?page=1&search=&category=All`, { 
+      cache: 'no-store',
+      // Pass cookies to authenticate the request (Fixes 401)
+      headers: { Cookie: cookieStore.toString() } 
+    }),
     fetch(`${baseUrl}/api/categories`, { cache: 'no-store' })
   ]);
   
-  return {
-    uploads: await upRes.json(),
-    categories: await catRes.json()
+  const upData = await upRes.json();
+  const catData = await catRes.json();
+
+  return { 
+    uploads: upData.uploads || [],
+    currentPage: upData.currentPage || 1,
+    totalPages: upData.totalPages || 1,
+    categories: catData
   };
 }
 
 export default async function UploadPage() {
-  const { uploads, categories } = await getData();
-
-  return (
-    <div className="max-w-6xl mx-auto p-6 space-y-12">
-      <UploadPdfSection categories={categories} />
-      <div className="h-[1px] bg-gray-200 w-full" />
-      <UploadFetchList initialUploads={uploads} categories={categories} />
-    </div>
-  );
+  const data = await getData();
+  return(<div className="relative top-40">
+    <UploadContent {...data} />
+    </div>)
 }
