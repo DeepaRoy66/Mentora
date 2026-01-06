@@ -49,7 +49,6 @@ const handler = NextAuth({
     },
 
     async jwt({ token, user }) {
-      // First login
       if (user?.email) {
         await connectionToDatabase();
 
