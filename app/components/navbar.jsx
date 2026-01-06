@@ -10,12 +10,12 @@ import {
   Clock,
   Menu,
   X,
-  FileText, // Icon for PDF to Summary
+  FileText,
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { useState } from "react"
-import { signIn, signOut, useSession } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
 
 export function Navbar() {
   const trendingTopics = [
@@ -81,7 +81,7 @@ export function Navbar() {
                 {mobileMenuOpen ? <X /> : <Menu />}
               </Button>
 
-              {/* DESKTOP BUTTONS */}
+              {/* DESKTOP NAV */}
               <div className="hidden md:flex items-center gap-2">
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/">
@@ -97,7 +97,6 @@ export function Navbar() {
                   </Link>
                 </Button>
 
-                {/* NEW: PDF to Summary Button (Standalone) */}
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/tools/pdf-to-summary">
                     <FileText className="h-4 w-4 mr-1" />
@@ -105,17 +104,21 @@ export function Navbar() {
                   </Link>
                 </Button>
 
+                {/* AUTH */}
                 {session ? (
-                  <>
+                  <Link
+                    href="/profile"
+                    className="flex items-center gap-2 ml-2"
+                  >
                     <img
                       src={session.user?.image ?? ""}
-                      alt="user"
+                      alt="profile"
                       className="h-8 w-8 rounded-full border border-white/20"
                     />
-                    <Button size="sm" onClick={() => signOut()}>
-                      Logout
-                    </Button>
-                  </>
+                    <span className="text-sm font-medium hidden lg:block">
+                      {session.user?.name}
+                    </span>
+                  </Link>
                 ) : (
                   <Button size="sm" onClick={() => signIn("google")}>
                     <LogIn className="h-4 w-4 mr-1" />
@@ -147,12 +150,12 @@ export function Navbar() {
               <Home className="h-4 w-4" />
               Home
             </Link>
+
             <Link href="/upload" className="flex items-center gap-2 py-2">
               <Upload className="h-4 w-4" />
               Pdf Upload
             </Link>
 
-            {/* PDF to Summary in Mobile Menu */}
             <Link href="/tools/pdf-to-summary" className="flex items-center gap-2 py-2">
               <FileText className="h-4 w-4" />
               PDF to Summary
@@ -160,9 +163,19 @@ export function Navbar() {
 
             <div className="border-t border-white/10 pt-3">
               {session ? (
-                <Button className="w-full" onClick={() => signOut()}>
-                  Logout
-                </Button>
+                <Link href="/profile" className="flex items-center gap-3">
+                  <img
+                    src={session.user?.image ?? ""}
+                    alt="profile"
+                    className="h-10 w-10 rounded-full border"
+                  />
+                  <div>
+                    <p className="font-medium">{session.user?.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      View Profile
+                    </p>
+                  </div>
+                </Link>
               ) : (
                 <Button className="w-full" onClick={() => signIn("google")}>
                   Login with Google
