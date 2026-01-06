@@ -10,16 +10,13 @@ import {
   Clock,
   Menu,
   X,
-  FileText,
-  User,
-  Mail,
-  Zap, // for points icon
+  FileText, // Icon for PDF to Summary
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Avatar, AvatarFallback,AvatarImage } from "./ui/avatar"
 import { useState } from "react"
-import { signIn, signOut, useSession } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
 
 export function Navbar() {
   const trendingTopics = [
@@ -87,9 +84,9 @@ export function Navbar() {
                 {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
 
-              {/* DESKTOP USER INFO & BUTTONS */}
-              <div className="hidden md:flex items-center gap-4">
-                <Button variant="ghost" size="sm" asChild className="text-black hover:bg-white/30">
+              {/* DESKTOP BUTTONS */}
+              <div className="hidden md:flex items-center gap-2">
+                <Button variant="ghost" size="sm" asChild>
                   <Link href="/">
                     <Home className="h-4 w-4 mr-1" />
                     Home
@@ -103,44 +100,25 @@ export function Navbar() {
                   </Link>
                 </Button>
 
-                <Button variant="ghost" size="sm" asChild className="text-black hover:bg-white/30">
+                {/* NEW: PDF to Summary Button (Standalone) */}
+                <Button variant="ghost" size="sm" asChild>
                   <Link href="/tools/pdf-to-summary">
                     <FileText className="h-4 w-4 mr-1" />
                     PDF to Summary
                   </Link>
                 </Button>
 
-                {/* LOGGED IN STATE */}
-                {loading ? (
-                  <div className="text-sm text-black/60">Loading...</div>
-                ) : user ? (
-                  <div className="flex items-center gap-3">
-                    {/* Profile Image + User Info */}
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 ring-2 ring-white/40">
-                        <AvatarImage src={user.image || ""} alt={user.name || "User"} />
-                        <AvatarFallback>{user.name?.[0] || "U"}</AvatarFallback>
-                      </Avatar>
-
-                      <div className="text-sm">
-                        <div className="font-medium text-black">{user.name || "User"}</div>
-                        <div className="flex items-center gap-3 text-black/70">
-                          <span className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {user.email}
-                          </span>
-                          <span className="flex items-center gap-1 font-semibold text-primary">
-                            <Zap className="h-3.5 w-3.5" />
-                            {user.contributionPoints || 0} pts
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button size="sm" variant="outline" onClick={() => signOut()}>
+                {session ? (
+                  <>
+                    <img
+                      src={session.user?.image ?? ""}
+                      alt="user"
+                      className="h-8 w-8 rounded-full border border-white/20"
+                    />
+                    <Button size="sm" onClick={() => signOut()}>
                       Logout
                     </Button>
-                  </div>
+                  </>
                 ) : (
                   <Button size="sm" onClick={() => signIn("google")}>
                     <LogIn className="h-4 w-4 mr-1" />
@@ -172,39 +150,22 @@ export function Navbar() {
               <Home className="h-4 w-4" />
               Home
             </Link>
-            <Link href="/upload" className="flex items-center gap-2 py-2 text-black">
+            <Link href="/upload" className="flex items-center gap-2 py-2">
               <Upload className="h-4 w-4" />
               PDF Upload
             </Link>
-            <Link href="/tools/pdf-to-summary" className="flex items-center gap-2 py-2 text-black">
+
+            {/* PDF to Summary in Mobile Menu */}
+            <Link href="/tools/pdf-to-summary" className="flex items-center gap-2 py-2">
               <FileText className="h-4 w-4" />
               PDF to Summary
             </Link>
 
-            {/* Mobile User Section */}
-            <div className="border-t border-white/30 pt-4">
-              {loading ? (
-                <div className="text-center text-black/60">Loading...</div>
-              ) : user ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.image || ""} />
-                      <AvatarFallback>{user.name?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium text-black">{user.name}</div>
-                      <div className="text-xs text-black/70">{user.email}</div>
-                      <div className="text-xs font-semibold text-primary flex items-center gap-1 mt-1">
-                        <Zap className="h-3 w-3" />
-                        {user.contributionPoints || 0} points
-                      </div>
-                    </div>
-                  </div>
-                  <Button className="w-full" variant="outline" onClick={() => signOut()}>
-                    Logout
-                  </Button>
-                </div>
+            <div className="border-t border-white/10 pt-3">
+              {session ? (
+                <Button className="w-full" onClick={() => signOut()}>
+                  Logout
+                </Button>
               ) : (
                 <Button className="w-full" onClick={() => signIn("google")}>
                   Login with Google
