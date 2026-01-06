@@ -6,17 +6,17 @@ import {
   Upload,
   LogIn,
   Home,
-  TrendingUp,
-  Clock,
   Menu,
   X,
-  FileText, // Icon for PDF to Summary
+  FileText,
+  User,
+  TrendingUp,
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
-import { Avatar, AvatarFallback,AvatarImage } from "./ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { useState } from "react"
-import { signIn, useSession } from "next-auth/react"
+import { signIn, signOut, useSession } from "next-auth/react"
 
 export function Navbar() {
   const trendingTopics = [
@@ -29,11 +29,10 @@ export function Navbar() {
 
   const { data: session, status } = useSession()
   const loading = status === "loading"
+  const user = session?.user
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
-
-  const user = session?.user
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50">
@@ -84,9 +83,9 @@ export function Navbar() {
                 {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
 
-              {/* DESKTOP BUTTONS */}
-              <div className="hidden md:flex items-center gap-2">
-                <Button variant="ghost" size="sm" asChild>
+              {/* DESKTOP NAV & USER */}
+              <div className="hidden md:flex items-center gap-4">
+                <Button variant="ghost" size="sm" asChild className="text-black hover:bg-white/30">
                   <Link href="/">
                     <Home className="h-4 w-4 mr-1" />
                     Home
@@ -100,25 +99,26 @@ export function Navbar() {
                   </Link>
                 </Button>
 
-                {/* NEW: PDF to Summary Button (Standalone) */}
-                <Button variant="ghost" size="sm" asChild>
+                <Button variant="ghost" size="sm" asChild className="text-black hover:bg-white/30">
                   <Link href="/tools/pdf-to-summary">
                     <FileText className="h-4 w-4 mr-1" />
                     PDF to Summary
                   </Link>
                 </Button>
 
-                {session ? (
-                  <>
-                    <img
-                      src={session.user?.image ?? ""}
-                      alt="user"
-                      className="h-8 w-8 rounded-full border border-white/20"
-                    />
-                    <Button size="sm" onClick={() => signOut()}>
-                      Logout
-                    </Button>
-                  </>
+                {/* USER - Only Avatar + Name (clickable to profile) */}
+                {loading ? (
+                  <div className="text-sm text-black/60">Loading...</div>
+                ) : user ? (
+                  <Button variant="ghost" asChild className="hover:bg-white/30">
+                    <Link href="/profile" className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9 ring-2 ring-white/40">
+                        <AvatarImage src={user.image || ""} alt={user.name || "User"} />
+                        <AvatarFallback>{user.name?.[0] || "U"}</AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium text-black">{user.name || "User"}</span>
+                    </Link>
+                  </Button>
                 ) : (
                   <Button size="sm" onClick={() => signIn("google")}>
                     <LogIn className="h-4 w-4 mr-1" />
@@ -150,22 +150,38 @@ export function Navbar() {
               <Home className="h-4 w-4" />
               Home
             </Link>
-            <Link href="/upload" className="flex items-center gap-2 py-2">
+            <Link href="/upload" className="flex items-center gap-2 py-2 text-black">
               <Upload className="h-4 w-4" />
               PDF Upload
             </Link>
-
-            {/* PDF to Summary in Mobile Menu */}
-            <Link href="/tools/pdf-to-summary" className="flex items-center gap-2 py-2">
+            <Link href="/tools/pdf-to-summary" className="flex items-center gap-2 py-2 text-black">
               <FileText className="h-4 w-4" />
               PDF to Summary
             </Link>
+            <Link href="/profile" className="flex items-center gap-2 py-2 text-black">
+              <User className="h-4 w-4" />
+              Profile
+            </Link>
 
-            <div className="border-t border-white/10 pt-3">
-              {session ? (
-                <Button className="w-full" onClick={() => signOut()}>
-                  Logout
-                </Button>
+            <div className="border-t border-white/30 pt-4">
+              {loading ? (
+                <div className="text-center text-black/60">Loading...</div>
+              ) : user ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.image || ""} />
+                      <AvatarFallback>{user.name?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium text-black">{user.name}</div>
+                      <div className="text-sm text-black/70">View profile</div>
+                    </div>
+                  </div>
+                  <Button className="w-full" variant="outline" onClick={() => signOut()}>
+                    Logout
+                  </Button>
+                </div>
               ) : (
                 <Button className="w-full" onClick={() => signIn("google")}>
                   Login with Google
@@ -179,7 +195,10 @@ export function Navbar() {
       {/* TRENDING */}
       <div className="bg-white/85 backdrop-blur-xl border-t border-white/30">
         <div className="max-w-7xl mx-auto px-4 h-10 flex items-center gap-6 text-sm overflow-x-auto">
-          <TrendingUp className="h-4 w-4 text-primary flex-shrink-0" />
+          <span className="flex items-center gap-1 text-primary flex-shrink-0">
+            <TrendingUp className="h-4 w-4" />
+            Trending
+          </span>
           {trendingTopics.map((topic) => (
             <Link
               key={topic}
@@ -189,10 +208,6 @@ export function Navbar() {
               {topic}
             </Link>
           ))}
-          <div className="ml-auto flex items-center gap-1 text-black/80">
-            <Clock className="h-3 w-3" />
-            Recent
-          </div>
         </div>
       </div>
     </nav>
