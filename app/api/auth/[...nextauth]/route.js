@@ -21,7 +21,6 @@ const handler = NextAuth({
   },
 
   callbacks: {
-    // ✅ 1. SIGN IN → save/update user in DB
     async signIn({ user }) {
       if (!user?.email) return false;
 
@@ -49,7 +48,6 @@ const handler = NextAuth({
       return true;
     },
 
-    // ✅ 2. JWT → LOAD USER FROM DB INTO TOKEN
     async jwt({ token, user }) {
       // First login
       if (user?.email) {
@@ -68,7 +66,7 @@ const handler = NextAuth({
       return token;
     },
 
-    // ✅ 3. SESSION → COPY FROM TOKEN TO CLIENT
+
     async session({ session, token }) {
       if (session.user) {
         session.user.name = token.name;
