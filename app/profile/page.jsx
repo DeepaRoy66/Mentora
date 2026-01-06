@@ -36,6 +36,7 @@ export default function ProfilePage() {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>
   }
 
+  // Redirect if not logged in
   if (!session) redirect("/")
 
   const user = session.user
@@ -58,35 +59,29 @@ export default function ProfilePage() {
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 px-16 py-24 relative">
           <div className="flex flex-col md:flex-row items-center gap-10 text-white">
             
-            {/* AVATAR SECTION */}
-            <div className="relative group">
-              <div className="relative group h-40 w-40 rounded-full ring-4 ring-white shadow-2xl overflow-hidden bg-white">
-  {displayImage ? (
-    <img 
-      src={displayImage} 
-      alt="Profile" 
-      className="object-cover h-full w-full"
-      referrerPolicy="no-referrer"
-    />
-  ) : (
-    <div className="h-full w-full flex items-center justify-center text-5xl font-bold text-blue-600 bg-white">
-      {user.name?.[0]?.toUpperCase() || "U"}
-    </div>
-  )}
+            {/* AVATAR SECTION (Cleaned up) */}
+            <div className="relative group h-40 w-40 rounded-full ring-4 ring-white shadow-2xl overflow-hidden bg-white">
+              {displayImage ? (
+                <img 
+                  src={displayImage} 
+                  alt="Profile" 
+                  className="object-cover h-full w-full"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-5xl font-bold text-blue-600 bg-white">
+                  {user.name?.[0]?.toUpperCase() || "U"}
+                </div>
+              )}
 
-  {/* Camera Overlay */}
-  <label className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-    <Camera className="w-8 h-8 text-white" />
-    <input hidden type="file" accept="image/*" onChange={handleImageUpload} />
-  </label>
-</div>
-
-              <label className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              {/* Camera Overlay */}
+              <label className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <Camera className="w-8 h-8 text-white" />
                 <input hidden type="file" accept="image/*" onChange={handleImageUpload} />
               </label>
             </div>
 
+            {/* User Info */}
             <div className="text-center md:text-left">
               <h1 className="text-5xl font-bold tracking-tight">{user.name}</h1>
               <p className="text-blue-100 mt-2 text-lg font-medium opacity-90">
@@ -97,12 +92,14 @@ export default function ProfilePage() {
         </CardHeader>
 
         <CardContent className="px-8 md:px-16 py-12 space-y-12 bg-white">
+          {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <Stat icon={<Zap className="w-8 h-8 text-yellow-500" />} label="Contribution Points" value={stats.points} />
             <Stat icon={<FileText className="w-8 h-8 text-blue-600" />} label="Uploaded Notes" value={stats.notes} />
             <Stat icon={<Trophy className="w-8 h-8 text-purple-600" />} label="Badges Earned" value={stats.badges} />
           </div>
 
+          {/* Sign Out Button */}
           <div className="flex justify-center md:justify-end pt-8 border-t">
             <Button size="lg" variant="destructive" onClick={() => signOut()}>
               <LogOut className="mr-2 h-4 w-4" /> Sign Out
@@ -114,6 +111,7 @@ export default function ProfilePage() {
   )
 }
 
+// Helper Component for Stats
 function Stat({ icon, label, value }) {
   return (
     <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
