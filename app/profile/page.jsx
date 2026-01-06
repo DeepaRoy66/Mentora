@@ -14,9 +14,8 @@ export default function ProfilePage() {
   const { data: session, status } = useSession()
   
   const [stats, setStats] = useState({ points: 0, notes: 0, badges: 0 })
-  const [uploadedImage, setUploadedImage] = useState(null) // Only used if user manually uploads a new file
+  const [uploadedImage, setUploadedImage] = useState(null) 
 
-  // Fetch live stats from Python
   useEffect(() => {
     if (session?.user?.email) {
       fetch(`http://127.0.0.1:5000/api/user-stats?email=${session.user.email}`)
@@ -36,12 +35,9 @@ export default function ProfilePage() {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>
   }
 
-  // Redirect if not logged in
   if (!session) redirect("/")
 
   const user = session.user
-  
-  // Logic: Use manually uploaded image -> OR use Session image -> OR default to empty
   const displayImage = uploadedImage || user.image
 
   const handleImageUpload = (e) => {
@@ -56,11 +52,14 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-100">
       <Card className="min-h-screen rounded-none border-0 shadow-none">
         
-        <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 px-16 py-24 relative">
-          <div className="flex flex-col md:flex-row items-center gap-10 text-white">
+        {/* HEADER SECTION */}
+        <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 md:px-16 py-12 md:py-24 relative">
+          
+          {/* Main Flex Container for Header */}
+          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-10 text-white w-full">
             
-            {/* AVATAR SECTION (Cleaned up) */}
-            <div className="relative group h-40 w-40 rounded-full ring-4 ring-white shadow-2xl overflow-hidden bg-white">
+            {/* 1. AVATAR */}
+            <div className="relative group h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white shadow-2xl overflow-hidden bg-white shrink-0">
               {displayImage ? (
                 <img 
                   src={displayImage} 
@@ -73,21 +72,34 @@ export default function ProfilePage() {
                   {user.name?.[0]?.toUpperCase() || "U"}
                 </div>
               )}
-
-              {/* Camera Overlay */}
+              
               <label className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <Camera className="w-8 h-8 text-white" />
                 <input hidden type="file" accept="image/*" onChange={handleImageUpload} />
               </label>
             </div>
 
-            {/* User Info */}
-            <div className="text-center md:text-left">
-              <h1 className="text-5xl font-bold tracking-tight">{user.name}</h1>
+            {/* 2. USER INFO */}
+            <div className="text-center md:text-left flex-1">
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight">{user.name}</h1>
               <p className="text-blue-100 mt-2 text-lg font-medium opacity-90">
                 {user.email}
               </p>
             </div>
+
+            {/* 3. LOGOUT BUTTON (Now at the top right) */}
+            <div className="mt-4 md:mt-0">
+              <Button 
+                variant="secondary" // White button looks better on blue background
+                size="lg" 
+                onClick={() => signOut()}
+                className="shadow-lg hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                <LogOut className="mr-2 h-4 w-4" /> 
+                LogOut
+              </Button>
+            </div>
+
           </div>
         </CardHeader>
 
@@ -98,20 +110,12 @@ export default function ProfilePage() {
             <Stat icon={<FileText className="w-8 h-8 text-blue-600" />} label="Uploaded Notes" value={stats.notes} />
             <Stat icon={<Trophy className="w-8 h-8 text-purple-600" />} label="Badges Earned" value={stats.badges} />
           </div>
-
-          {/* Sign Out Button */}
-          <div className="flex justify-center md:justify-end pt-8 border-t">
-            <Button size="lg" variant="destructive" onClick={() => signOut()}>
-              <LogOut className="mr-2 h-4 w-4" /> Sign Out
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </div>
   )
 }
 
-// Helper Component for Stats
 function Stat({ icon, label, value }) {
   return (
     <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
