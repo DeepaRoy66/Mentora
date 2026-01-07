@@ -1,0 +1,5 @@
+{
+  "name": "qa-platform-backend",
+  "version": "1.0.0",
+  "description": "FastAPI backend for Q&A platform"
+}

@@ -1,6 +1,6 @@
 // components/ui/avatar.jsx
 import * as React from "react"
-import { cn } from "@/lib/utils" // You'll need this utility (see below)
+import { cn } from "@/lib/utils"
 
 const Avatar = React.forwardRef(({ className, ...props }, ref) => (
   <div
