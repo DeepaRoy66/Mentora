@@ -4,7 +4,7 @@ export default function QuestionList({ questions }) {
   return (
     <div className="space-y-4">
       {questions.map((question) => (
-        <Link key={question._id} href={`/question/${question._id}`}>
+        <Link key={question._id} href={`MentoraQ/question/${question._id}`}>
           <div className="flex gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer">
             <div className="flex-shrink-0 text-center bg-gray-50 p-3 rounded min-w-16">
               <div className="text-lg font-bold text-blue-600">{question.votes || 0}</div>

@@ -1,3 +1,4 @@
+//api/uploads/[id]/route.js
 import connectionToDatabase from "@/lib/database/mongoose";
 import PdfUpload from "@/lib/models/PdfUpload"; 
 import { NextResponse } from "next/server";
