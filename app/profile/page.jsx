@@ -4,10 +4,8 @@ import { useSession, signOut } from "next-auth/react"
 import { redirect } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Mail, FileText, Zap, Trophy, LogOut, Camera } from "lucide-react"
-
-// Ensure these paths match your project structure
-import { Avatar,AvatarFallback,AvatarImage } from "../components/ui/avatar"
-import { Card,CardContent,CardHeader} from "../components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
+import { Card, CardContent, CardHeader } from "../components/ui/card"
 import { Button } from "../components/ui/button"
 
 export default function ProfilePage() {
@@ -15,19 +13,25 @@ export default function ProfilePage() {
   
   const [stats, setStats] = useState({ points: 0, notes: 0, badges: 0 })
   const [uploadedImage, setUploadedImage] = useState(null) 
+  const [backendImage, setBackendImage] = useState(null)
 
+  // Fetch stats & latest image from FastAPI
   useEffect(() => {
     if (session?.user?.email) {
       fetch(`http://localhost:8000/user-stats?email=${session.user.email}`)
-        .then((res) => res.json())
-        .then((data) => {
+        .then(res => {
+          if (!res.ok) throw new Error("Backend error")
+          return res.json()
+        })
+        .then(data => {
           setStats({
             points: data.contributionPoints || 0,
             notes: data.notesCount || 0,
             badges: data.badgesCount || 0
           })
+          if (data.image) setBackendImage(data.image)
         })
-        .catch((err) => console.error("Error connecting to Python backend:", err))
+        .catch(err => console.error("Error connecting to backend:", err))
     }
   }, [session])
 
@@ -38,7 +42,7 @@ export default function ProfilePage() {
   if (!session) redirect("/")
 
   const user = session.user
-  const displayImage = uploadedImage || user.image
+  const displayImage = uploadedImage || backendImage || user.image
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0]
@@ -54,11 +58,9 @@ export default function ProfilePage() {
         
         {/* HEADER SECTION */}
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 md:px-16 py-12 md:py-24 relative">
-          
-          {/* Main Flex Container for Header */}
           <div className="flex flex-col md:flex-row items-center gap-8 md:gap-10 text-white w-full">
             
-            {/* 1. AVATAR */}
+            {/* AVATAR */}
             <div className="relative group h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white shadow-2xl overflow-hidden bg-white shrink-0">
               {displayImage ? (
                 <img 
@@ -79,7 +81,7 @@ export default function ProfilePage() {
               </label>
             </div>
 
-            {/* 2. USER INFO */}
+            {/* USER INFO */}
             <div className="text-center md:text-left flex-1">
               <h1 className="text-4xl md:text-5xl font-bold tracking-tight">{user.name}</h1>
               <p className="text-blue-100 mt-2 text-lg font-medium opacity-90">
@@ -87,10 +89,10 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            {/* 3. LOGOUT BUTTON (Now at the top right) */}
+            {/* LOGOUT BUTTON */}
             <div className="mt-4 md:mt-0">
               <Button 
-                variant="secondary" // White button looks better on blue background
+                variant="secondary"
                 size="lg" 
                 onClick={() => signOut()}
                 className="shadow-lg hover:bg-red-50 hover:text-red-600 transition-colors"
@@ -103,8 +105,8 @@ export default function ProfilePage() {
           </div>
         </CardHeader>
 
+        {/* STATS */}
         <CardContent className="px-8 md:px-16 py-12 space-y-12 bg-white">
-          {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <Stat icon={<Zap className="w-8 h-8 text-yellow-500" />} label="Contribution Points" value={stats.points} />
             <Stat icon={<FileText className="w-8 h-8 text-blue-600" />} label="Uploaded Notes" value={stats.notes} />
