@@ -100,7 +100,7 @@ export function Navbar() {
                 </Button>
 
                 <Button variant="ghost" size="sm" asChild className="text-black hover:bg-white/30">
-                  <Link href="/tools/pdf-to-summary">
+                  <Link href="./generatesummary">
                     <FileText className="h-4 w-4 mr-1" />
                     PDF to Summary
                   </Link>
