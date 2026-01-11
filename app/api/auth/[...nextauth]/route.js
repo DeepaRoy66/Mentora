@@ -16,7 +16,7 @@ export const authOptions = {
     async signIn({ user }) {
       if (!user?.email) return false;
       try {
-        await fetch("http://127.0.0.1:5000/api/sync-user", {
+        await fetch("http://localhost:8000/sync-user", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -39,7 +39,7 @@ export const authOptions = {
         token.picture = user.image;
 
         try {
-          const res = await fetch(`http://127.0.0.1:5000/api/user-stats?email=${user.email}`);
+          const res = await fetch(`http://localhost:8000/user-stats?email=${user.email}`);
           // ✅ Check if response is actually OK before parsing JSON
           if (res.ok) {
             const data = await res.json();

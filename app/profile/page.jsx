@@ -18,7 +18,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (session?.user?.email) {
-      fetch(`http://127.0.0.1:5000/api/user-stats?email=${session.user.email}`)
+      fetch(`http://localhost:8000/user-stats?email=${session.user.email}`)
         .then((res) => res.json())
         .then((data) => {
           setStats({
