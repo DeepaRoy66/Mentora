@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-export default function CommentForm({ targetType, targetId, questionId, onCommentPosted }) {
+export default function CommentForm({ targetType, targetId, onCommentPosted }) {
   const [comment, setComment] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -15,9 +15,9 @@ export default function CommentForm({ targetType, targetId, questionId, onCommen
     try {
       let url = ""
       if (targetType === "question") {
-        url = `http://localhost:8000/questions/${targetId}/comments`
+        url = `http://localhost:8000/MentoraQ/comment/question/${targetId}`
       } else if (targetType === "answer") {
-        url = `http://localhost:8000/answers/${targetId}/comments`
+        url = `http://localhost:8000/MentoraQ/comment/answer/${targetId}`
       }
 
       const response = await fetch(url, {

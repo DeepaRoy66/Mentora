@@ -32,7 +32,7 @@ export default function AskQuestion() {
         .map((tag) => tag.trim())
         .filter((tag) => tag)
 
-      const response = await fetch("http://localhost:8000/backend/MentoraQ/questions", {
+      const response = await fetch("http://localhost:8000/MentoraQ/questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

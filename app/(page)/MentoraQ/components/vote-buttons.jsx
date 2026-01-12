@@ -8,19 +8,24 @@ export default function VoteButtons({ type, id, votes = 0, onVote }) {
 
   const handleVote = async (direction) => {
     try {
-      const newDirection = userVote === direction ? 0 : direction
-      const response = await fetch(`http://localhost:8000/vote/${type}/${id}`, {
+      const response = await fetch(`http://localhost:8000/MentoraQ/vote/${type}/${id}/${direction}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ direction: newDirection }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setLocalVotes(data.votes)
-        setUserVote(newDirection)
-        onVote?.()
+      if (!response.ok) throw new Error("Failed to vote")
+
+      // Optimistically update vote count locally
+      let newVotes = localVotes
+      if (userVote === direction) {
+        newVotes -= direction
+        setUserVote(0)
+      } else {
+        if (userVote !== 0) newVotes -= userVote
+        newVotes += direction
+        setUserVote(direction)
       }
+      setLocalVotes(newVotes)
+      onVote?.()
     } catch (err) {
       console.error("Vote error:", err)
     }

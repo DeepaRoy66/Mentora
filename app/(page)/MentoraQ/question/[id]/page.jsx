@@ -7,6 +7,8 @@ import AnswerSection from "../../components/answer-section"
 import CommentForm from "../../components/comment-form"
 import VoteButtons from "../../components/vote-buttons"
 
+const API = process.env.NEXT_PUBLIC_API_URL
+
 export default function QuestionDetail() {
   const params = useParams()
   const [question, setQuestion] = useState(null)
@@ -15,125 +17,134 @@ export default function QuestionDetail() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchQuestionAndAnswers()
+    const controller = new AbortController()
+    fetchData(controller.signal)
+    return () => controller.abort()
   }, [params.id])
 
-  const fetchQuestionAndAnswers = async () => {
+  const fetchData = async (signal) => {
     try {
       setLoading(true)
+
       const [qRes, aRes] = await Promise.all([
-        fetch(`http://localhost:8000/backend/MentoraQ/questions/${params.id}`),
-        fetch(`http://localhost:8000/backend/MentoraQ/questions/${params.id}/answers`),
+        fetch(`${API}/MentoraQ/questions/${params.id}`, { signal }),
+        fetch(`${API}/MentoraQ/questions/${params.id}/answers`, { signal })
       ])
+      
+      if (!qRes.ok || !aRes.ok) throw new Error("Failed to load")
 
-      if (!qRes.ok || !aRes.ok) throw new Error("Failed to fetch")
-
-      const questionData = await qRes.json()
-      const answersData = await aRes.json()
-
-      setQuestion(questionData)
-      setAnswers(answersData)
+      setQuestion(await qRes.json())
+      setAnswers(await aRes.json())
     } catch (err) {
-      setError(err.message)
+      if (err.name !== "AbortError") setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  if (loading)
-    return (
-      <div className="min-h-screen">
-        <Navbar />
-        <p className="text-center mt-8">Loading...</p>
-      </div>
-    )
-  if (error)
-    return (
-      <div className="min-h-screen">
-        <Navbar />
-        <p className="text-center mt-8 text-red-600">{error}</p>
-      </div>
-    )
-  if (!question)
-    return (
-      <div className="min-h-screen">
-        <Navbar />
-        <p className="text-center mt-8">Question not found</p>
-      </div>
-    )
-
-  const handleAnswerPosted = () => {
-    fetchQuestionAndAnswers()
-  }
+  if (loading) return <p className="text-center mt-10">Loading...</p>
+  if (error) return <p className="text-center text-red-600">{error}</p>
+  if (!question) return <p className="text-center">Not found</p>
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* Question */}
-        <div className="mb-8 pb-8 border-b">
-          <div className="flex gap-4">
-            <VoteButtons type="question" id={question._id} votes={question.votes} onVote={fetchQuestionAndAnswers} />
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold mb-4">{question.title}</h1>
-              <p className="text-gray-700 mb-4 whitespace-pre-wrap">{question.description}</p>
+      <main className="max-w-4xl mx-auto p-6">
 
-              {question.tags && question.tags.length > 0 && (
-                <div className="flex gap-2 mb-4">
-                  {question.tags.map((tag) => (
-                    <span key={tag} className="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-sm">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+        <div className="flex gap-4 border-b pb-6">
+          <VoteButtons
+            type="question"
+            id={question._id}
+            votes={question.votes}
+            onVote={() => fetchData()}
+          />
 
-              <p className="text-xs text-gray-500">asked {new Date(question.created_at).toLocaleString()}</p>
-            </div>
-          </div>
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold">
+              {question.title}
+            </h1>
 
-          {/* Question Comments */}
-          <div className="mt-6 ml-12">
-            <CommentForm targetType="question" targetId={question._id} onCommentPosted={fetchQuestionAndAnswers} />
-            {question.comments && question.comments.length > 0 && (
-              <div className="mt-4 space-y-3">
-                {question.comments.map((comment) => (
-                  <div key={comment._id} className="bg-gray-50 p-3 rounded text-sm">
-                    <p className="text-gray-700">{comment.text}</p>
-                    <p className="text-xs text-gray-500 mt-1">{new Date(comment.created_at).toLocaleString()}</p>
-                  </div>
+            <p className="mt-4 whitespace-pre-wrap">
+              {question.description}
+            </p>
+
+            {question.tags?.length > 0 && (
+              <div className="flex gap-2 mt-3">
+                {question.tags.map(tag => (
+                  <span
+                    key={tag}
+                    className="bg-gray-200 px-3 py-1 rounded-full text-sm"
+                  >
+                    {tag}
+                  </span>
                 ))}
               </div>
             )}
+
+            <p className="text-xs mt-2 text-gray-500">
+              {new Date(question.created_at).toLocaleString()}
+            </p>
           </div>
         </div>
 
-        {/* Answers */}
-        <div>
-          <h2 className="text-2xl font-bold mb-6">{answers.length} Answers</h2>
+        <div className="ml-12 mt-6">
+          <CommentForm
+            targetType="question"
+            targetId={question._id}
+            onCommentPosted={() => fetchData()}
+          />
 
-          {answers.length === 0 ? (
-            <p className="text-gray-500 mb-8">No answers yet. Be the first to answer!</p>
-          ) : (
-            <div className="space-y-6 mb-8">
-              {answers.map((answer) => (
-                <AnswerSection
-                  key={answer._id}
-                  answer={answer}
-                  questionId={params.id}
-                  onUpdate={fetchQuestionAndAnswers}
-                />
+          {question.comments?.length > 0 && (
+            <div className="space-y-3 mt-4">
+              {question.comments.map(c => (
+                <div
+                  key={c._id}
+                  className="bg-gray-50 p-3 rounded"
+                >
+                  <p>{c.text}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {new Date(c.created_at).toLocaleString()}
+                  </p>
+                </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Post Answer */}
-        <div className="bg-gray-50 p-6 rounded-lg">
-          <h3 className="text-xl font-bold mb-4">Your Answer</h3>
-          <AnswerSection isNew questionId={params.id} onUpdate={handleAnswerPosted} />
+        <h2 className="text-2xl font-bold mt-10">
+          {answers.length} Answers
+        </h2>
+
+        {answers.length === 0 ? (
+          <p className="text-gray-500 mt-4">
+            No answers yet
+          </p>
+        ) : (
+          <div className="space-y-6 mt-6">
+            {answers.map(ans => (
+              <AnswerSection
+                key={ans._id}
+                answer={ans}
+                questionId={params.id}
+                onUpdate={() => fetchData()}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="bg-gray-50 p-6 rounded-lg mt-10">
+          <h3 className="text-xl font-bold mb-4">
+            Your Answer
+          </h3>
+
+          <AnswerSection
+            isNew
+            questionId={params.id}
+            onUpdate={() => fetchData()}
+          />
         </div>
+
       </main>
     </div>
   )

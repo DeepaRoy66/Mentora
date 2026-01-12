@@ -15,10 +15,10 @@ export default function AnswerSection({ answer, questionId, isNew = false, onUpd
     setError(null)
 
     try {
-      const response = await fetch(`http://localhost:8000/questions/${questionId}/answers`, {
+      const response = await fetch(`http://localhost:8000/MentoraQ/questions/${questionId}/answers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ text: content }),
       })
 
       if (!response.ok) throw new Error("Failed to post answer")
