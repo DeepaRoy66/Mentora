@@ -1,115 +1,83 @@
 "use client"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import Navbar from "../components/navbar"
+import { authFetch } from "@/lib/api"
 
-export default function AskQuestion() {
+export default function Ask() {
+  const [title, setTitle] = useState("")
+  const [description, setDesc] = useState("")
+  const [tags, setTags] = useState("")
   const router = useRouter()
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    tags: "",
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  const handleSubmit = async (e) => {
+  async function submit(e) {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
-
-    try {
-      const tags = formData.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter((tag) => tag)
-
-      const response = await fetch("http://localhost:8000/MentoraQ/questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          tags: tags,
-        }),
-      })
-
-      if (!response.ok) throw new Error("Failed to create question")
-
-      const newQuestion = await response.json()
-      router.push(`/MentoraQ/question/${newQuestion._id}`)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+    const res = await authFetch("/MentoraQ/questions", {
+      method: "POST",
+      body: JSON.stringify({
+        title,
+        description,
+        tags: tags.split(",").map(t => t.trim()),
+      }),
+    })
+    const q = await res.json()
+    router.push(`/question/${q._id}`)
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <form 
+        onSubmit={submit} 
+        className="bg-white shadow-lg rounded-xl w-full max-w-lg p-8 space-y-6"
+      >
+        <h2 className="text-2xl font-semibold text-gray-800 text-center">
+          Ask a Question
+        </h2>
 
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Ask a Question</h1>
+        {/* Title Input */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-gray-600 font-medium">Title</label>
+          <input
+            type="text"
+            placeholder="Enter your question title"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            className="p-3 border rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+            required
+          />
+        </div>
 
-        <form onSubmit={handleSubmit} className="bg-gray-50 p-6 rounded-lg">
-          {error && <p className="mb-4 text-red-600">{error}</p>}
+        {/* Description Input */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-gray-600 font-medium">Description</label>
+          <textarea
+            placeholder="Describe your question in detail"
+            value={description}
+            onChange={e => setDesc(e.target.value)}
+            className="p-3 border rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition h-32 resize-none"
+            required
+          />
+        </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">Title</label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="What's your question?"
-            />
-          </div>
+        {/* Tags Input */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-gray-600 font-medium">Tags</label>
+          <input
+            type="text"
+            placeholder="Add tags separated by commas"
+            value={tags}
+            onChange={e => setTags(e.target.value)}
+            className="p-3 border rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+          />
+        </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">Description</label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              required
-              rows="6"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Provide details about your question..."
-            />
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">Tags (comma-separated)</label>
-            <input
-              type="text"
-              name="tags"
-              value={formData.tags}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., javascript, react, nextjs"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400"
-          >
-            {loading ? "Posting..." : "Post Question"}
-          </button>
-        </form>
-      </main>
+        {/* Submit Button */}
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+        >
+          Post Question
+        </button>
+      </form>
     </div>
   )
 }

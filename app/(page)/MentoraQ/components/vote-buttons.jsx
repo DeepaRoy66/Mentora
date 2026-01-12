@@ -1,51 +1,31 @@
 "use client"
-
+import { authFetch } from "@/lib/api"
 import { useState } from "react"
 
-export default function VoteButtons({ type, id, votes = 0, onVote }) {
+export default function VoteButtons({ type, id, votes, onVote }) {
   const [localVotes, setLocalVotes] = useState(votes)
-  const [userVote, setUserVote] = useState(0)
 
-  const handleVote = async (direction) => {
+  const vote = async (value) => {
     try {
-      const response = await fetch(`http://localhost:8000/MentoraQ/vote/${type}/${id}/${direction}`, {
-        method: "POST",
-      })
-
-      if (!response.ok) throw new Error("Failed to vote")
-
-      // Optimistically update vote count locally
-      let newVotes = localVotes
-      if (userVote === direction) {
-        newVotes -= direction
-        setUserVote(0)
-      } else {
-        if (userVote !== 0) newVotes -= userVote
-        newVotes += direction
-        setUserVote(direction)
-      }
-      setLocalVotes(newVotes)
-      onVote?.()
+      await authFetch(`/MentoraQ/vote/${type}/${id}/${value}`, { method: "POST" })
+      setLocalVotes(localVotes + value)
+      if (onVote) onVote()
     } catch (err) {
-      console.error("Vote error:", err)
+      console.error(err)
     }
   }
 
   return (
-    <div className="flex flex-col items-center gap-2 bg-gray-50 p-2 rounded">
+    <div className="flex flex-col items-center w-12">
       <button
-        onClick={() => handleVote(1)}
-        className={`text-xl ${userVote === 1 ? "text-orange-500" : "text-gray-400"} hover:text-orange-500`}
-      >
-        ▲
-      </button>
-      <span className="text-sm font-semibold">{localVotes}</span>
+        onClick={() => vote(1)}
+        className="text-green-600 text-lg font-bold"
+      >▲</button>
+      <span className="font-bold">{localVotes}</span>
       <button
-        onClick={() => handleVote(-1)}
-        className={`text-xl ${userVote === -1 ? "text-blue-500" : "text-gray-400"} hover:text-blue-500`}
-      >
-        ▼
-      </button>
+        onClick={() => vote(-1)}
+        className="text-red-600 text-lg font-bold"
+      >▼</button>
     </div>
   )
 }

@@ -13,10 +13,12 @@ export const authOptions = {
   session: { strategy: "jwt" },
 
   callbacks: {
+    // Called after user signs in
     async signIn({ user }) {
       if (!user?.email) return false;
 
       try {
+        // Sync user in FastAPI backend
         const res = await fetch("http://localhost:8000/sync-user", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -29,25 +31,34 @@ export const authOptions = {
 
         if (!res.ok) {
           console.error("FastAPI backend returned error:", res.status);
-          // Allow login even if backend fails
         }
 
         return true;
       } catch (err) {
         console.error("FastAPI backend offline, logging in anyway:", err);
-        return true; // ✅ Allow login even if backend is down
+        return true;
       }
     },
 
-    async jwt({ token, user, trigger, session }) {
+    // Called whenever JWT token is created or updated
+    async jwt({ token, user, session, trigger }) {
+      // On initial login, attach user info to token
       if (user) {
         token.name = user.name;
         token.email = user.email;
         token.picture = user.image;
+      }
 
+      // Always fetch user stats from FastAPI using JWT
+      if (token.email) {
         try {
           const res = await fetch(
-            `http://localhost:8000/user-stats?email=${user.email}`
+            `http://localhost:8000/user-stats?email=${token.email}`,
+            {
+              headers: {
+                "Authorization": `Bearer ${token.email}`, // <-- Send JWT/email here
+              },
+            }
           );
 
           if (res.ok) {
@@ -58,12 +69,13 @@ export const authOptions = {
             console.error("FastAPI /user-stats returned status:", res.status);
             token.contributionPoints = 0;
           }
-        } catch (error) {
-          console.error("Backend fetch failed, using default values.", error);
+        } catch (err) {
+          console.error("Backend fetch failed, using default values.", err);
           token.contributionPoints = 0;
         }
       }
 
+      // Handle session update triggers
       if (trigger === "update" && session?.user) {
         token.picture = session.user.image;
       }
@@ -71,6 +83,7 @@ export const authOptions = {
       return token;
     },
 
+    // Called when session object is sent to frontend
     async session({ session, token }) {
       if (session.user) {
         session.user.name = token.name;

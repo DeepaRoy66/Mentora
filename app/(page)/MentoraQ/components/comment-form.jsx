@@ -1,59 +1,45 @@
 "use client"
-
 import { useState } from "react"
+import { authFetch } from "@/lib/api"
 
 export default function CommentForm({ targetType, targetId, onCommentPosted }) {
-  const [comment, setComment] = useState("")
+  const [text, setText] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const submitComment = async () => {
+    if (!text.trim()) return
     setLoading(true)
-    setError(null)
 
     try {
-      let url = ""
-      if (targetType === "question") {
-        url = `http://localhost:8000/MentoraQ/comment/question/${targetId}`
-      } else if (targetType === "answer") {
-        url = `http://localhost:8000/MentoraQ/comment/answer/${targetId}`
-      }
-
-      const response = await fetch(url, {
+      await authFetch(`/MentoraQ/comment/${targetType}/${targetId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: comment }),
+        body: JSON.stringify({ text }),
       })
-
-      if (!response.ok) throw new Error("Failed to post comment")
-
-      setComment("")
-      onCommentPosted?.()
+      setText("")
+      if (onCommentPosted) onCommentPosted()
     } catch (err) {
-      setError(err.message)
+      console.error(err)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
-      <input
-        type="text"
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
+    <div className="mt-4">
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={2}
+        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder="Add a comment..."
-        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       <button
-        type="submit"
-        disabled={loading || !comment.trim()}
-        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-400 transition disabled:bg-gray-200 disabled:cursor-not-allowed"
+        onClick={submitComment}
+        disabled={loading}
+        className="mt-2 bg-blue-600 text-white px-4 py-1 rounded disabled:bg-gray-400"
       >
         {loading ? "Posting..." : "Comment"}
       </button>
-      {error && <p className="text-red-600 text-sm">{error}</p>}
-    </form>
+    </div>
   )
 }
