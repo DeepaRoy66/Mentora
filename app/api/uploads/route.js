@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { generateCustomSlug } from "@/lib/utils";
 import { getServerSession } from "next-auth";
 import mongoose from "mongoose";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
+import authOptions from "@/app/api/auth/[...nextauth]/route";
 
 export async function POST(req) {
   try {
