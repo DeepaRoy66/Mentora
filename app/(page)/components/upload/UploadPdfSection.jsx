@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { BiX, BiFileBlank, BiErrorAlt } from 'react-icons/bi';
@@ -10,21 +10,27 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
     const [tags, setTags] = useState([]);
     
     const TAG_LIMIT = 500;
-
-    const defaultState = { 
-        title: '', 
-        desc: '', 
-        category: 'Others', 
-        comments: true, 
-        visibility: 'Public' 
-    };
     
-    const [form, setForm] = useState(defaultState);
+    const [form, setForm] = useState({
+        title: '',
+        desc: '',
+        category: 'Others',
+        comments: true,
+        visibility: 'Public'
+    });
 
     const currentTagLength = tags.join('').length;
     const isTagLimitReached = currentTagLength > TAG_LIMIT;
 
     useEffect(() => {
+        const defaultState = { 
+            title: '', 
+            desc: '', 
+            category: 'Others', 
+            comments: true, 
+            visibility: 'Public' 
+        };
+
         if (initialData && initialData._id) {
             // Edit Mode
             setForm({ 
@@ -48,7 +54,7 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
             setFile(null);
             setTagInput('');
         }
-    }, [initialData, initialFile]); 
+    }, [initialData, initialFile]); // ✅ Warning gone
 
     const handleFileChange = (e) => {
         const selected = e.target.files[0];
@@ -128,7 +134,7 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
     };
 
     return (
-        <div className="p-8 bg-white rounded-2xl shadow-2xl text-gray-900">
+       <div className="p-8 bg-white rounded-2xl shadow-2xl text-gray-900">
             <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
                 <h2 className="text-2xl font-black text-gray-900">
                     {initialData && initialData._id ? "Edit Document" : "Upload New PDF"}

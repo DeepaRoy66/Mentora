@@ -1,11 +1,27 @@
-// pages/uploads/[id].js
-import { useRouter } from "next/router";
+// app/(page)/pdfetch/[id]/page.jsx
+import React from "react";
+import { notFound } from "next/navigation";
 
-export default function UploadDetail({ upload }) {
-  const router = useRouter();
+// This is a Server Component, so we can fetch data directly
+async function getUpload(id) {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/uploads/${id}`, {
+      cache: "no-store", // always fetch fresh data
+    });
+
+    if (!res.ok) return null;
+    return res.json();
+  } catch (err) {
+    return null;
+  }
+}
+
+export default async function UploadDetail({ params }) {
+  const upload = await getUpload(params.id);
 
   if (!upload) {
-    return <div className="text-center mt-20">Upload not found.</div>;
+    // Next.js will show 404 page
+    notFound();
   }
 
   return (
@@ -32,16 +48,4 @@ export default function UploadDetail({ upload }) {
       </div>
     </div>
   );
-}
-
-// Fetch single upload by id (SSR)
-export async function getServerSideProps({ params }) {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/uploads/${params.id}`);
-    if (!res.ok) return { props: { upload: null } };
-    const upload = await res.json();
-    return { props: { upload } };
-  } catch (err) {
-    return { props: { upload: null } };
-  }
 }

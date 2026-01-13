@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from 'react';
-import { BiCloudUpload, BiDotsVerticalRounded, BiTrash, BiDownload, BiFileBlank, BiSelectMultiple, BiLeftArrow, BiRightArrow, BiEdit, BiCheck } from 'react-icons/bi';
+import { useState, useEffect, useCallback } from 'react';
+import { BiCloudUpload, BiDotsVerticalRounded, BiTrash, BiDownload, BiFileBlank, BiSelectMultiple, BiLeftArrow, BiRightArrow, BiEdit } from 'react-icons/bi';
 
 export default function UploadList({ categories, initialUploads, initialPage, initialTotalPages, onUploadClick }) {
   const [list, setList] = useState(initialUploads);
@@ -20,7 +20,8 @@ export default function UploadList({ categories, initialUploads, initialPage, in
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const fetchData = async () => {
+  // Wrapped in useCallback to fix useEffect warnings
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/uploads?search=${query}&category=${cat}&page=${page}`);
@@ -37,20 +38,34 @@ export default function UploadList({ categories, initialUploads, initialPage, in
     } finally {
       setLoading(false);
     }
-  };
+  }, [query, cat, page]);
 
+  // Fetch when query or category changes (debounced)
   useEffect(() => {
     const handler = setTimeout(() => { setPage(1); fetchData(); }, 500);
     return () => clearTimeout(handler);
-  }, [query, cat]);
+  }, [query, cat, fetchData]);
 
+  // Fetch when page changes
   useEffect(() => {
-    if (page !== initialPage) { fetchData(); }
-  }, [page]);
+    if (page !== initialPage) {
+      fetchData();
+    }
+  }, [page, fetchData, initialPage]);
+
+  // Reset selection when list changes
+  useEffect(() => {
+    setSelectedIds([]);
+    setSelectAll(false);
+  }, [list]);
 
   const toggleSelect = (id) => {
-    if (selectedIds.includes(id)) { setSelectedIds(selectedIds.filter(sid => sid !== id)); setSelectAll(false); } 
-    else { setSelectedIds([...selectedIds, id]); }
+    if (selectedIds.includes(id)) { 
+      setSelectedIds(selectedIds.filter(sid => sid !== id)); 
+      setSelectAll(false); 
+    } else { 
+      setSelectedIds([...selectedIds, id]); 
+    }
   };
 
   const toggleSelectAll = () => {
@@ -61,7 +76,9 @@ export default function UploadList({ categories, initialUploads, initialPage, in
   const handleBulkDelete = async () => {
     if (!confirm(`Delete ${selectedIds.length} files?`)) return;
     await Promise.all(selectedIds.map(id => fetch(`/api/uploads/${id}`, { method: 'DELETE' })));
-    setSelectedIds(); setSelectAll(false); fetchData();
+    setSelectedIds([]); 
+    setSelectAll(false); 
+    fetchData();
     showNotification(`Deleted ${selectedIds.length} files`, 'success');
   };
 
@@ -167,7 +184,7 @@ export default function UploadList({ categories, initialUploads, initialPage, in
           {selectAll ? <BiSelectMultiple size={18} className="text-blue-600" /> : <div className="w-[14px] h-[14px] border-2 border-gray-400 rounded-sm" />}
         </div>
         <div>PDF</div>
-        <div className="hidden md:block">Category</div> {/* Hide on Mobile */}
+        <div className="hidden md:block">Category</div>
         <div className="hidden md:block">Visibility</div>
         <div className="hidden md:block">Date</div>
         <div></div>
@@ -182,27 +199,16 @@ export default function UploadList({ categories, initialUploads, initialPage, in
         ) : (
           list.map((item) => (
             <div key={item._id} className="group grid grid-cols-[40px_1fr_40px] md:grid-cols-[40px_2fr_120px_120px_120px_40px] gap-4 px-4 py-4 border-b border-gray-200 bg-white hover:bg-gray-50 items-center transition-colors">
-              {/* Checkbox */}
               <div onClick={() => toggleSelect(item._id)} className="cursor-pointer flex justify-center">
                 {selectedIds.includes(item._id) ? <BiSelectMultiple size={18} className="text-blue-600" /> : <div className="w-[14px] h-[14px] border-2 border-gray-400 rounded-sm group-hover:border-gray-600" />}
               </div>
-
-              {/* PDF Title - Mobile Layout */}
               <div className="flex items-center gap-3 overflow-hidden">
-                <div className="flex-shrink-0 text-gray-400 hover:text-red-500">
-                  <BiFileBlank size={32} />
-                </div>
+                <div className="flex-shrink-0 text-gray-400 hover:text-red-500"><BiFileBlank size={32} /></div>
                 <div className="flex flex-col overflow-hidden w-full">
                   <span className="text-sm font-medium text-gray-900 truncate w-full hover:underline cursor-pointer" onClick={() => window.open(item.pdfUrl, '_blank')}>{item.title}</span>
                 </div>
               </div>
-
-              {/* Category Column - Hide on Mobile */}
-              <div className="text-sm text-gray-700 font-medium hidden md:block truncate">
-                {item.category}
-              </div>
-
-              {/* Visibility Select - Hide on Mobile */}
+              <div className="text-sm text-gray-700 font-medium hidden md:block truncate">{item.category}</div>
               <div className="relative hidden md:block">
                 <select 
                   value={item.visibility}
@@ -211,17 +217,10 @@ export default function UploadList({ categories, initialUploads, initialPage, in
                 >
                   <option value="Public">Public</option>
                   <option value="Private">Private</option>
-                  {/* Removed Unlisted Option */}
                 </select>
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><BiEdit size={12}/></div>
               </div>
-
-              {/* Date - Hide on Mobile */}
-              <div className="text-sm text-gray-500 hidden md:block">
-                {new Date(item.createdAt).toLocaleDateString()}
-              </div>
-
-              {/* Actions */}
+              <div className="text-sm text-gray-500 hidden md:block">{new Date(item.createdAt).toLocaleDateString()}</div>
               <div className="relative flex justify-end">
                 <button onClick={() => setOpenMenuId(openMenuId === item._id ? null : item._id)} className="p-1 text-gray-500 hover:bg-gray-200 rounded-full"><BiDotsVerticalRounded size={24} /></button>
                 {openMenuId === item._id && (

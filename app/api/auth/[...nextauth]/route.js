@@ -1,3 +1,4 @@
+// app/api/auth/[...nextauth]/route.js
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
@@ -13,12 +14,11 @@ export const authOptions = {
   session: { strategy: "jwt" },
 
   callbacks: {
-    // Called after user signs in
     async signIn({ user }) {
       if (!user?.email) return false;
 
+      // Optional: sync user with your FastAPI backend
       try {
-        // Sync user in FastAPI backend
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sync-user`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -29,34 +29,28 @@ export const authOptions = {
           }),
         });
 
-        if (!res.ok) {
-          console.error("FastAPI backend returned error:", res.status);
-        }
-
+        if (!res.ok) console.error("Backend returned status:", res.status);
         return true;
       } catch (err) {
-        console.error("FastAPI backend offline, logging in anyway:", err);
+        console.error("Backend offline, logging in anyway:", err);
         return true;
       }
     },
 
-    // Called whenever JWT token is created or updated
     async jwt({ token, user, session, trigger }) {
-      // On initial login, attach user info to token
       if (user) {
         token.name = user.name;
         token.email = user.email;
         token.picture = user.image;
       }
 
-      // Always fetch user stats from FastAPI using JWT
       if (token.email) {
         try {
           const res = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/user-stats?email=${token.email}`,
             {
               headers: {
-                "Authorization": `Bearer ${token.email}`, // <-- Send JWT/email here
+                Authorization: `Bearer ${token.email}`, // optional JWT/email
               },
             }
           );
@@ -66,16 +60,13 @@ export const authOptions = {
             token.contributionPoints = data.contributionPoints || 0;
             if (data.image) token.picture = data.image;
           } else {
-            console.error("FastAPI /user-stats returned status:", res.status);
             token.contributionPoints = 0;
           }
         } catch (err) {
-          console.error("Backend fetch failed, using default values.", err);
           token.contributionPoints = 0;
         }
       }
 
-      // Handle session update triggers
       if (trigger === "update" && session?.user) {
         token.picture = session.user.image;
       }
@@ -83,7 +74,6 @@ export const authOptions = {
       return token;
     },
 
-    // Called when session object is sent to frontend
     async session({ session, token }) {
       if (session.user) {
         session.user.name = token.name;
