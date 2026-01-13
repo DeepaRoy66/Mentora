@@ -72,7 +72,7 @@ export default function StudyAssistant() {
     formData.append('mode', specificMode);
 
     try {
-      const response = await fetch('http://localhost:8000/process_pdf', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/process_pdf`, {
         method: 'POST',
         body: formData,
       });

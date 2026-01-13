@@ -37,7 +37,7 @@ export default function UploadDetail({ upload }) {
 // Fetch single upload by id (SSR)
 export async function getServerSideProps({ params }) {
   try {
-    const res = await fetch(`http://localhost:8000/uploads/${params.id}`);
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/uploads/${params.id}`);
     if (!res.ok) return { props: { upload: null } };
     const upload = await res.json();
     return { props: { upload } };

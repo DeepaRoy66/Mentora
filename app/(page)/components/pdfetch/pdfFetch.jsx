@@ -1,4 +1,4 @@
-// components/PdfFetch.jsx
+
 "use client";
 
 import { useState } from "react";
@@ -20,7 +20,7 @@ export default function PdfFetch({ uploads: initialUploads, currentPage: initial
         search,
         category,
       });
-      const res = await fetch(`http://localhost:8000/uploads?${query.toString()}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/uploads?${query.toString()}`);
       const data = await res.json();
 
       setUploads(data.uploads || []);

@@ -18,7 +18,7 @@ export default function ProfilePage() {
   // Fetch stats & latest image from FastAPI
   useEffect(() => {
     if (session?.user?.email) {
-      fetch(`http://localhost:8000/user-stats?email=${session.user.email}`)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/user-stats?email=${session.user.email}`)
         .then(res => {
           if (!res.ok) throw new Error("Backend error")
           return res.json()

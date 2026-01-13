@@ -19,7 +19,7 @@ export const authOptions = {
 
       try {
         // Sync user in FastAPI backend
-        const res = await fetch("http://localhost:8000/sync-user", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sync-user`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -53,7 +53,7 @@ export const authOptions = {
       if (token.email) {
         try {
           const res = await fetch(
-            `http://localhost:8000/user-stats?email=${token.email}`,
+            `${process.env.NEXT_PUBLIC_API_URL}/user-stats?email=${token.email}`,
             {
               headers: {
                 "Authorization": `Bearer ${token.email}`, // <-- Send JWT/email here

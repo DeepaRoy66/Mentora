@@ -48,7 +48,7 @@ export default function UploadStudyPage({ params }) {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("mode", specificMode);
-      const response = await fetch("http://localhost:8000/process_pdf", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/process_pdf`, {
         method: "POST",
         body: formData,
       });
