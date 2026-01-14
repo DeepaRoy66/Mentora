@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { BiCloudUpload, BiDotsVerticalRounded, BiTrash, BiDownload, BiFileBlank, BiSelectMultiple, BiLeftArrow, BiRightArrow, BiEdit } from 'react-icons/bi';
 import { useSession } from "next-auth/react";
 
-export default function UploadList({ categories, initialUploads, initialPage, initialTotalPages, onUploadClick }) {
+export default function UploadFetchList({ categories, initialUploads, initialPage, initialTotalPages, onUploadClick }) {
   const { data: session } = useSession(); // Get User Session
   
   const [list, setList] = useState(initialUploads);
@@ -28,8 +28,9 @@ export default function UploadList({ categories, initialUploads, initialPage, in
 
     setLoading(true);
     try {
-      // 1. Fetch from Python Backend
-      const res = await fetch(`http://localhost:8000/api/uploads?search=${query}&category=${cat}&page=${page}`, {
+      // ✅ FIX: Use the Private Route here too
+      // If we used /api/uploads, search results would show other people's files
+      const res = await fetch(`http://localhost:8000/api/my-uploads?search=${query}&category=${cat}&page=${page}`, {
         headers: { 'x-user-email': session.user.email }
       });
 
@@ -61,13 +62,14 @@ export default function UploadList({ categories, initialUploads, initialPage, in
   const handleDelete = async (id) => {
     if (!confirm("Delete this file?")) return;
     
+    // Deletion is always specific ID, but we send email for security
     const res = await fetch(`http://localhost:8000/api/uploads/${id}`, { 
         method: 'DELETE',
         headers: { 'x-user-email': session.user.email }
     });
     
     if (res.ok) { fetchData(); showNotification("Deleted successfully", "success"); }
-    else showNotification("Failed to delete");
+    else showNotification("Failed to delete", "error");
   };
 
   const handleBulkDelete = async () => {
@@ -162,7 +164,7 @@ export default function UploadList({ categories, initialUploads, initialPage, in
         </div>
       )}
 
-      {/* TABLE */}
+      {/* TABLE HEADER */}
       <div className="grid grid-cols-[40px_1fr_40px] md:grid-cols-[40px_2fr_120px_120px_120px_40px] gap-4 px-4 py-3 border-b border-gray-200 bg-white text-xs font-bold text-gray-500 uppercase tracking-wider">
         <div onClick={toggleSelectAll} className="cursor-pointer flex justify-center">
           {selectAll ? <BiSelectMultiple size={18} className="text-blue-600" /> : <div className="w-[14px] h-[14px] border-2 border-gray-400 rounded-sm" />}
@@ -174,6 +176,7 @@ export default function UploadList({ categories, initialUploads, initialPage, in
         <div></div>
       </div>
 
+      {/* LIST ITEMS */}
       <div className="flex flex-col pb-20">
         {loading ? (
           <div className="p-10 text-center text-gray-500 text-sm bg-white">Updating...</div>

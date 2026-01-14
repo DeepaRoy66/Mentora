@@ -1,11 +1,11 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase'; // Ensure this path is correct for your project
 import { BiX, BiFileBlank, BiErrorAlt } from 'react-icons/bi';
 import { useSession } from "next-auth/react";
 
 export default function UploadPdfSection({ categories, initialData, initialFile, close, notify }) {
-    const { data: session } = useSession(); // Get Session
+    const { data: session } = useSession(); // Get Session to send email
 
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -46,7 +46,7 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
     const handleFileChange = (e) => {
         const selected = e.target.files[0];
         if (selected?.type !== 'application/pdf') {
-            notify("Only PDF files are allowed");
+            notify("Only PDF files are allowed", "error");
             return;
         }
         setFile(selected);
@@ -57,7 +57,7 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
         if (e.key === 'Enter' || e.key === ',') {
             e.preventDefault();
             const val = tagInput.trim().replace(',', '');
-            if (currentTagLength + val.length > TAG_LIMIT) return notify("Tag limit reached");
+            if (currentTagLength + val.length > TAG_LIMIT) return notify("Tag limit reached", "error");
             if (val && !tags.includes(val)) { 
                 setTags([...tags, val]); 
                 setTagInput(''); 
@@ -68,15 +68,15 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
     const removeTag = (idx) => setTags(tags.filter((_, i) => i !== idx));
 
     const handleUpload = async () => {
-        if (!form.title) return notify("Document Title is required");
-        if (isTagLimitReached) return notify(`Tags exceed limit.`);
-        if (!session?.user?.email) return notify("Please log in to upload.");
+        if (!form.title) return notify("Document Title is required", "error");
+        if (isTagLimitReached) return notify(`Tags exceed limit.`, "error");
+        if (!session?.user?.email) return notify("Please log in to upload.", "error");
         
         setLoading(true);
         try {
             let pdfUrl = initialData?.pdfUrl;
             
-            // 1. UPLOAD TO SUPABASE (Same as before)
+            // 1. UPLOAD TO SUPABASE (Storage)
             if (file) {
                 const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
                 const { error: upError } = await supabase.storage.from('mentora-files').upload(fileName, file);
@@ -86,6 +86,8 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
             }
             
             // 2. SAVE DATA TO PYTHON BACKEND
+            // Note: We use the generic /api/uploads endpoint for POST/PUT, 
+            // but we MUST send the header so the backend records the email.
             const baseUrl = "http://localhost:8000";
             const url = initialData ? `${baseUrl}/api/uploads/${initialData._id}` : `${baseUrl}/api/uploads`;
             const method = initialData ? 'PUT' : 'POST';
@@ -94,7 +96,7 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
                 method: method,
                 headers: { 
                     'Content-Type': 'application/json',
-                    'x-user-email': session.user.email 
+                    'x-user-email': session.user.email // <--- CRITICAL: Links upload to user
                 },
                 body: JSON.stringify({ 
                     title: form.title, 
@@ -108,14 +110,15 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
             });
             
             if (res.ok) { 
+                notify(initialData ? "Updated successfully" : "Uploaded successfully", "success");
                 window.location.reload(); 
             } else { 
                 const errData = await res.json(); 
-                notify(errData.detail || "Error saving document"); 
+                notify(errData.detail || "Error saving document", "error"); 
             }
         } catch (err) { 
             console.error(err);
-            notify(err.message || "Network error"); 
+            notify(err.message || "Network error", "error"); 
         } finally { 
             setLoading(false); 
         }
