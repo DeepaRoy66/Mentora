@@ -3,7 +3,6 @@
 import { useSession, signOut } from "next-auth/react"
 import { useEffect, useState } from "react"
 import { Mail, FileText, Zap, Trophy, LogOut, Camera } from "lucide-react"
-import { Avatar } from "../components/ui/avatar"
 import { Card, CardContent, CardHeader } from "../components/ui/card"
 import { Button } from "../components/ui/button"
 
@@ -14,10 +13,15 @@ export default function ProfilePage() {
   const [uploadedImage, setUploadedImage] = useState(null)
 
   useEffect(() => {
-    if (!session?.accessToken) return
+    // 1. Wait for user to be logged in
+    if (!session?.user?.email) return
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/user-stats`, {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
+    // 2. Fetch Stats from PYTHON Backend
+    // Must use x-user-email header so Python knows who we are
+    fetch("http://127.0.0.1:8000/api/user-stats", {
+      headers: { 
+        "x-user-email": session.user.email 
+      },
     })
       .then(res => {
         if (!res.ok) throw new Error("Backend error " + res.status)
@@ -31,11 +35,11 @@ export default function ProfilePage() {
         })
         if (data.image) setBackendImage(data.image)
       })
-      .catch(err => console.error(err))
+      .catch(err => console.error("Stats Fetch Error:", err))
   }, [session])
 
-  if (status === "loading") return <div>Loading...</div>
-  if (!session) return <div>Redirecting...</div>
+  if (status === "loading") return <div className="p-10 text-center">Loading profile...</div>
+  if (!session) return <div className="p-10 text-center">Please log in to view profile.</div>
 
   const user = session.user
   const displayImage = uploadedImage || backendImage || user.image
@@ -94,7 +98,7 @@ export default function ProfilePage() {
 
 function Stat({ icon, label, value }) {
   return (
-    <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
+    <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-center mb-4 bg-gray-50 w-16 h-16 rounded-full items-center mx-auto">{icon}</div>
       <p className="text-4xl font-bold text-gray-900 mb-1">{value}</p>
       <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">{label}</p>
