@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
-import UploadList from "./UploadFetchList";
+import UploadList from "./UploadFetchList"; // Make sure filename matches your project
 import UploadPdfSection from "./UploadPdfSection";
 
 export default function UploadContent({ categories, uploads, currentPage, totalPages }) {
@@ -16,17 +16,13 @@ export default function UploadContent({ categories, uploads, currentPage, totalP
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // FIXED: Added 'e' as second argument to avoid ReferenceError
-  // Logic: If itemToEdit has an '_id', it's an Edit. Otherwise, it's a New Upload.
   const handleUploadClick = (itemToEdit, e) => {
-    e?.stopPropagation(); // Stop event bubbling safely
+    e?.stopPropagation(); 
     
     if (itemToEdit && itemToEdit._id) {
-      // Edit Mode: Open Modal
       setEditingItem(itemToEdit);
       setShowUpload(true);
     } else {
-      // New Upload Mode: Trigger File Picker
       fileInputRef.current?.click();
     }
   };
@@ -34,12 +30,11 @@ export default function UploadContent({ categories, uploads, currentPage, totalP
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // User selected a file -> Open Card Immediately
       setPreSelectedFile(file);
       setEditingItem(null);
       setShowUpload(true); 
     }
-    e.target.value = null; // Reset input
+    e.target.value = null; 
   };
 
   const closeModal = () => {
@@ -52,7 +47,6 @@ export default function UploadContent({ categories, uploads, currentPage, totalP
 
   return (
     <div className="w-full">
-      {/* Hidden File Input */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -61,7 +55,6 @@ export default function UploadContent({ categories, uploads, currentPage, totalP
         accept=".pdf"
       />
 
-      {/* Notification Toast */}
       {notification && (
         <div className={`fixed top-6 left-1/2 -translate-x-1/2 px-8 py-4 rounded-xl shadow-2xl text-white font-bold text-base z-[200] transition-all duration-300 transform ${notification.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
           {notification.msg}

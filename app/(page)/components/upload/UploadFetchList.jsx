@@ -1,8 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
 import { BiCloudUpload, BiDotsVerticalRounded, BiTrash, BiDownload, BiFileBlank, BiSelectMultiple, BiLeftArrow, BiRightArrow, BiEdit } from 'react-icons/bi';
+import { useSession } from "next-auth/react";
 
 export default function UploadList({ categories, initialUploads, initialPage, initialTotalPages, onUploadClick }) {
+  const { data: session } = useSession(); // Get User Session
+  
   const [list, setList] = useState(initialUploads);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -20,11 +23,16 @@ export default function UploadList({ categories, initialUploads, initialPage, in
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Wrapped in useCallback to fix useEffect warnings
   const fetchData = useCallback(async () => {
+    if (!session?.user?.email) return;
+
     setLoading(true);
     try {
-      const res = await fetch(`/api/uploads?search=${query}&category=${cat}&page=${page}`);
+      // 1. Fetch from Python Backend
+      const res = await fetch(`http://localhost:8000/api/uploads?search=${query}&category=${cat}&page=${page}`, {
+        headers: { 'x-user-email': session.user.email }
+      });
+
       if (res.ok) {
         const data = await res.json();
         setList(data.uploads || []);
@@ -38,31 +46,50 @@ export default function UploadList({ categories, initialUploads, initialPage, in
     } finally {
       setLoading(false);
     }
-  }, [query, cat, page]);
+  }, [query, cat, page, session]);
 
-  // Fetch when query or category changes (debounced)
   useEffect(() => {
     const handler = setTimeout(() => { setPage(1); fetchData(); }, 500);
     return () => clearTimeout(handler);
   }, [query, cat, fetchData]);
 
-  // Fetch when page changes
   useEffect(() => {
-    if (page !== initialPage) {
-      fetchData();
-    }
+    if (page !== initialPage) fetchData();
   }, [page, fetchData, initialPage]);
 
-  // Reset selection when list changes
-  useEffect(() => {
-    setSelectedIds([]);
-    setSelectAll(false);
-  }, [list]);
+  // Handle Deletions
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this file?")) return;
+    
+    const res = await fetch(`http://localhost:8000/api/uploads/${id}`, { 
+        method: 'DELETE',
+        headers: { 'x-user-email': session.user.email }
+    });
+    
+    if (res.ok) { fetchData(); showNotification("Deleted successfully", "success"); }
+    else showNotification("Failed to delete");
+  };
 
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedIds.length} files?`)) return;
+    
+    await Promise.all(selectedIds.map(id => 
+        fetch(`http://localhost:8000/api/uploads/${id}`, { 
+            method: 'DELETE',
+            headers: { 'x-user-email': session.user.email }
+        })
+    ));
+    
+    setSelectedIds([]); 
+    setSelectAll(false); 
+    fetchData();
+    showNotification(`Deleted ${selectedIds.length} files`, 'success');
+  };
+
+  // Helper Functions
   const toggleSelect = (id) => {
     if (selectedIds.includes(id)) { 
-      setSelectedIds(selectedIds.filter(sid => sid !== id)); 
-      setSelectAll(false); 
+      setSelectedIds(selectedIds.filter(sid => sid !== id)); setSelectAll(false); 
     } else { 
       setSelectedIds([...selectedIds, id]); 
     }
@@ -71,29 +98,6 @@ export default function UploadList({ categories, initialUploads, initialPage, in
   const toggleSelectAll = () => {
     if (selectAll) { setSelectedIds([]); setSelectAll(false); } 
     else { setSelectedIds(list.map(item => item._id)); setSelectAll(true); }
-  };
-
-  const handleBulkDelete = async () => {
-    if (!confirm(`Delete ${selectedIds.length} files?`)) return;
-    await Promise.all(selectedIds.map(id => fetch(`/api/uploads/${id}`, { method: 'DELETE' })));
-    setSelectedIds([]); 
-    setSelectAll(false); 
-    fetchData();
-    showNotification(`Deleted ${selectedIds.length} files`, 'success');
-  };
-
-  const handleBulkDownload = () => {
-    selectedIds.forEach(id => {
-      const item = list.find(i => i._id === id);
-      if (item) forceDownload(item.pdfUrl, item.title);
-    });
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm("Delete this file?")) return;
-    const res = await fetch(`/api/uploads/${id}`, { method: 'DELETE' });
-    if (res.ok) { fetchData(); showNotification("Deleted successfully", "success"); }
-    else showNotification("Failed to delete");
   };
 
   const forceDownload = async (url, filename) => {
@@ -111,34 +115,15 @@ export default function UploadList({ categories, initialUploads, initialPage, in
     }
   };
 
-  const handleVisibilityChange = async (id, newVis) => {
-    try {
-      const res = await fetch(`/api/uploads/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visibility: newVis })
-      });
-      if (res.ok) {
-        setList(list.map(i => i._id === id ? { ...i, visibility: newVis } : i));
-        showNotification("Visibility updated", "success");
-      } else {
-        throw new Error("Update failed");
-      }
-    } catch (e) {
-      showNotification("Failed to update visibility");
-    }
-  };
-
   return (
     <div className="bg-gray-100 min-h-screen w-full font-sans">
-      {/* Notification Popup */}
       {notification && (
         <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-bold text-sm z-[100] animate-bounce ${notification.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
           {notification.msg}
         </div>
       )}
 
-      {/* TOP BAR */}
+      {/* SEARCH BAR */}
       <div className="sticky top-0 bg-white z-20 border-b border-gray-200 p-4 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-sm">
         <div className="relative w-full sm:w-96">
           <input 
@@ -171,14 +156,13 @@ export default function UploadList({ categories, initialUploads, initialPage, in
         <div className="bg-[#F9FAFB] border-b border-gray-300 px-4 py-2 flex items-center justify-between text-sm sticky top-[73px] z-10 shadow-sm">
           <div className="flex items-center gap-3">
             <span className="font-bold text-gray-700">{selectedIds.length} selected</span>
-            <button onClick={handleBulkDownload} className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-gray-100 border border-gray-300 rounded text-gray-700"><BiDownload /> Download</button>
             <button onClick={handleBulkDelete} className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-red-50 hover:border-red-200 hover:text-red-600 border border-gray-300 rounded text-gray-700"><BiTrash /> Delete</button>
           </div>
           <button onClick={() => { setSelectedIds([]); setSelectAll(false); }} className="text-gray-500 hover:text-black font-bold">Deselect all</button>
         </div>
       )}
 
-      {/* TABLE HEADER */}
+      {/* TABLE */}
       <div className="grid grid-cols-[40px_1fr_40px] md:grid-cols-[40px_2fr_120px_120px_120px_40px] gap-4 px-4 py-3 border-b border-gray-200 bg-white text-xs font-bold text-gray-500 uppercase tracking-wider">
         <div onClick={toggleSelectAll} className="cursor-pointer flex justify-center">
           {selectAll ? <BiSelectMultiple size={18} className="text-blue-600" /> : <div className="w-[14px] h-[14px] border-2 border-gray-400 rounded-sm" />}
@@ -190,7 +174,6 @@ export default function UploadList({ categories, initialUploads, initialPage, in
         <div></div>
       </div>
 
-      {/* TABLE BODY */}
       <div className="flex flex-col pb-20">
         {loading ? (
           <div className="p-10 text-center text-gray-500 text-sm bg-white">Updating...</div>
@@ -209,18 +192,9 @@ export default function UploadList({ categories, initialUploads, initialPage, in
                 </div>
               </div>
               <div className="text-sm text-gray-700 font-medium hidden md:block truncate">{item.category}</div>
-              <div className="relative hidden md:block">
-                <select 
-                  value={item.visibility}
-                  onChange={(e) => handleVisibilityChange(item._id, e.target.value)}
-                  className="w-full text-sm font-medium text-gray-600 bg-transparent border border-transparent focus:border-blue-500 focus:bg-white rounded cursor-pointer outline-none"
-                >
-                  <option value="Public">Public</option>
-                  <option value="Private">Private</option>
-                </select>
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><BiEdit size={12}/></div>
-              </div>
+              <div className="text-sm text-gray-700 font-medium hidden md:block truncate">{item.visibility}</div>
               <div className="text-sm text-gray-500 hidden md:block">{new Date(item.createdAt).toLocaleDateString()}</div>
+              
               <div className="relative flex justify-end">
                 <button onClick={() => setOpenMenuId(openMenuId === item._id ? null : item._id)} className="p-1 text-gray-500 hover:bg-gray-200 rounded-full"><BiDotsVerticalRounded size={24} /></button>
                 {openMenuId === item._id && (
