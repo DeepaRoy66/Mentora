@@ -1,11 +1,11 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase'; // Ensure this path is correct for your project
+import { supabase } from '@/lib/supabase'; 
 import { BiX, BiFileBlank, BiErrorAlt } from 'react-icons/bi';
 import { useSession } from "next-auth/react";
 
 export default function UploadPdfSection({ categories, initialData, initialFile, close, notify }) {
-    const { data: session } = useSession(); // Get Session to send email
+    const { data: session } = useSession(); 
 
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -37,7 +37,7 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
             setTags(initialData.tags || []);
             setFile(null);
         } else if (initialFile) {
-            setForm({ ...form, title: initialFile.name.replace('.pdf', '') }); // Auto-fill title
+            setForm({ ...form, title: initialFile.name.replace('.pdf', '') }); 
             setTags([]);
             setFile(initialFile);
         }
@@ -85,9 +85,7 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
                 pdfUrl = publicUrl;
             }
             
-            // 2. SAVE DATA TO PYTHON BACKEND
-            // Note: We use the generic /api/uploads endpoint for POST/PUT, 
-            // but we MUST send the header so the backend records the email.
+        
             const baseUrl = "http://localhost:8000";
             const url = initialData ? `${baseUrl}/api/uploads/${initialData._id}` : `${baseUrl}/api/uploads`;
             const method = initialData ? 'PUT' : 'POST';
@@ -96,7 +94,7 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
                 method: method,
                 headers: { 
                     'Content-Type': 'application/json',
-                    'x-user-email': session.user.email // <--- CRITICAL: Links upload to user
+                    'x-user-email': session.user.email 
                 },
                 body: JSON.stringify({ 
                     title: form.title, 

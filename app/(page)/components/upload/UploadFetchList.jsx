@@ -4,8 +4,7 @@ import { BiCloudUpload, BiDotsVerticalRounded, BiTrash, BiDownload, BiFileBlank,
 import { useSession } from "next-auth/react";
 
 export default function UploadFetchList({ categories, initialUploads, initialPage, initialTotalPages, onUploadClick }) {
-  const { data: session } = useSession(); // Get User Session
-  
+  const { data: session } = useSession();   
   const [list, setList] = useState(initialUploads);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -28,8 +27,7 @@ export default function UploadFetchList({ categories, initialUploads, initialPag
 
     setLoading(true);
     try {
-      // ✅ FIX: Use the Private Route here too
-      // If we used /api/uploads, search results would show other people's files
+     
       const res = await fetch(`http://localhost:8000/api/my-uploads?search=${query}&category=${cat}&page=${page}`, {
         headers: { 'x-user-email': session.user.email }
       });

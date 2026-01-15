@@ -4,36 +4,38 @@ import { authOptions } from "@/lib/authoptions";
 
 async function getData() {
   const session = await getServerSession(authOptions);
-  
   const defaultData = { uploads: [], currentPage: 1, totalPages: 1, categories: [] };
 
-  // If user not logged in, return empty (UI will handle redirect if needed)
   if (!session || !session.user) return defaultData;
 
   const pythonUrl = "http://127.0.0.1:8000"; 
-  const nextUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
   try {
     const [upRes, catRes] = await Promise.all([
-      // ✅ FIX: Using /api/my-uploads to get ONLY this user's files
+      // Fetch uploads from Python
       fetch(`${pythonUrl}/api/my-uploads?page=1&category=All`, { 
         cache: 'no-store',
         headers: { "x-user-email": session.user.email } 
       }),
-      fetch(`${nextUrl}/api/categories`, { cache: 'no-store' }).catch(() => ({ ok: false }))
+      // ✅ FIX: Fetch categories from Python (pythonUrl) instead of nextUrl
+      fetch(`${pythonUrl}/api/categories`, { cache: 'no-store' })
     ]);
     
     let upData = { uploads: [], currentPage: 1, totalPages: 1 };
     let catData = [];
 
     if (upRes.ok) upData = await upRes.json();
-    if (catRes && catRes.ok) catData = await catRes.json();
+    
+    // Check if FastAPI returned categories successfully
+    if (catRes.ok) {
+        catData = await catRes.json();
+    }
 
     return { 
       uploads: upData.uploads || [],
       currentPage: upData.currentPage || 1,
       totalPages: upData.totalPages || 1,
-      categories: catData
+      categories: catData // These are now coming from FastAPI!
     };
 
   } catch (error) {

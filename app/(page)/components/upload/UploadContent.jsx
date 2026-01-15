@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
-import UploadList from "./UploadFetchList"; // Make sure filename matches your project
+import UploadList from "./UploadFetchList"; 
 import UploadPdfSection from "./UploadPdfSection";
 
 export default function UploadContent({ categories, uploads, currentPage, totalPages }) {
