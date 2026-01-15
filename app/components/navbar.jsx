@@ -11,12 +11,14 @@ import {
   FileText,
   User,
   TrendingUp,
+  LogOut,
 } from "lucide-react"
 import { Button } from "./ui/button"
-import { Input } from "./ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
-import { useState } from "react"
+import { Input } from "./ui/input" 
+import { Avatar, AvatarFallback,AvatarImage } from "./ui/avatar"
+import { useState, useRef, useEffect } from "react"
 import { signIn, signOut, useSession } from "next-auth/react"
+import { cn } from "@/lib/utils" 
 
 export function Navbar() {
   const trendingTopics = [
@@ -31,159 +33,227 @@ export function Navbar() {
   const loading = status === "loading"
   const user = session?.user
 
+  // State management
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const searchInputRef = useRef(null)
+
+  // Focus input when search opens
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [isSearchOpen])
+
+  // Handle clicking outside to close search
+  const handleBlur = (e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      if (!searchInputRef.current?.value) {
+        setIsSearchOpen(false)
+      }
+    }
+  }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50">
-      {/* MAIN BAR */}
-      <div className="backdrop-blur-xl bg-white/90 border-b border-white/30">
+    <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col font-sans tracking-tight shadow-sm">
+      
+      {/* MAIN NAVBAR
+          - Increased height slightly to h-[72px] to accommodate larger text nicely.
+          - Kept bg-white/90 (Forced White Glass)
+          - Removed bottom border here (seamless look)
+      */}
+      <div className="w-full bg-white/90 backdrop-blur-xl transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between gap-3">
-            {/* LOGO */}
-            <Link href="/" className="text-2xl font-bold text-black">
+          <div className="flex h-[72px] items-center justify-between gap-6">
+            
+            {/* LOGO - Larger (3xl) and Extra Bold */}
+            <Link 
+              href="/" 
+              className="text-3xl font-extrabold text-black hover:opacity-80 transition-opacity tracking-tighter"
+            >
               MENTORA
             </Link>
 
-            {/* DESKTOP SEARCH */}
-            <div className="hidden md:block flex-1 max-w-md">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-black/60" />
-                <Input
-                  placeholder="Search..."
-                  className="pl-10 bg-white/70 border-white/40 text-black placeholder:text-black/50 backdrop-blur"
-                />
+            {/* DESKTOP ACTIONS */}
+            <div className="flex items-center gap-3 md:gap-4 flex-1 justify-end">
+              
+              {/* SEARCH BAR */}
+              <div 
+                className={cn(
+                  "hidden md:flex items-center transition-all duration-300 ease-in-out mr-2",
+                  isSearchOpen ? "w-72" : "w-12"
+                )}
+                onBlur={handleBlur}
+              >
+                {isSearchOpen ? (
+                  <div className="relative w-full animate-in fade-in zoom-in-95 duration-200">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+                    <Input
+                      ref={searchInputRef}
+                      placeholder="Search topics..."
+                      // Increased height to h-10 for better touch target
+                      className="pl-11 pr-10 h-10 bg-gray-100/80 border-transparent text-black placeholder:text-gray-500 rounded-full focus-visible:ring-1 focus-visible:ring-gray-300 text-base"
+                    />
+                    <button 
+                      onClick={() => setIsSearchOpen(false)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black p-1"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setIsSearchOpen(true)}
+                    className="rounded-full h-10 w-10 hover:bg-gray-100 text-gray-600 hover:text-black"
+                  >
+                    <Search className="h-6 w-6" />
+                  </Button>
+                )}
               </div>
-            </div>
 
-            {/* ACTIONS */}
-            <div className="flex items-center gap-3">
-              {/* MOBILE ICONS */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden text-black hover:bg-white/30"
-                onClick={() => {
-                  setMobileSearchOpen(!mobileSearchOpen)
-                  setMobileMenuOpen(false)
-                }}
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden text-black hover:bg-white/30"
-                onClick={() => {
-                  setMobileMenuOpen(!mobileMenuOpen)
-                  setMobileSearchOpen(false)
-                }}
-              >
-                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
-
-              {/* DESKTOP NAV & USER */}
-              <div className="hidden md:flex items-center gap-4">
-                <Button variant="ghost" size="sm" asChild className="text-black hover:bg-white/30">
+              {/* NAV LINKS - LARGER TEXT (text-base instead of sm) */}
+              <div className="hidden md:flex items-center gap-2">
+                <Button variant="ghost" asChild className="text-base font-semibold text-gray-700 hover:text-black hover:bg-gray-100/80 h-10 px-4">
                   <Link href="/">
-                    <Home className="h-4 w-4 mr-1" />
+                    <Home className="h-5 w-5 mr-2" />
                     Home
                   </Link>
                 </Button>
 
-                <Button variant="ghost" size="sm" asChild className="text-black hover:bg-white/30">
+                <Button variant="ghost" asChild className="text-base font-semibold text-gray-700 hover:text-black hover:bg-gray-100/80 h-10 px-4">
                   <Link href="/upload">
-                    <Upload className="h-4 w-4 mr-1" />
+                    <Upload className="h-5 w-5 mr-2" />
                     Upload
                   </Link>
                 </Button>
 
-                <Button variant="ghost" size="sm" asChild className="text-black hover:bg-white/30">
-                  <Link href="./generatesummary">
-                    <FileText className="h-4 w-4 mr-1" />
-                    PDF to Summary
+                <Button variant="ghost" asChild className="text-base font-semibold text-gray-700 hover:text-black hover:bg-gray-100/80 h-10 px-4">
+                  <Link href="/generatesummary">
+                    <FileText className="h-5 w-5 mr-2" />
+                    Pdf-Summary
                   </Link>
                 </Button>
+              </div>
 
-                {/* USER - Only Avatar + Name (clickable to profile) */}
+              {/* DIVIDER */}
+              <div className="hidden md:block h-8 w-px bg-gray-200 mx-1"></div>
+
+              {/* USER / LOGIN */}
+              <div className="hidden md:flex items-center">
                 {loading ? (
-                  <div className="text-sm text-black/60">Loading...</div>
+                  <div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
                 ) : user ? (
-                  <Button variant="ghost" asChild className="hover:bg-white/30">
+                  <Button variant="ghost" asChild className="rounded-full pl-2 pr-5 h-11 hover:bg-gray-100">
                     <Link href="/profile" className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 ring-2 ring-white/40">
-                        <AvatarImage src={user.image || ""} alt={user.name || "User"} />
-                        <AvatarFallback>{user.name?.[0] || "U"}</AvatarFallback>
+                      <Avatar className="h-9 w-9 ring-2 ring-white shadow-sm">
+                        <AvatarImage src={user.image || ""} />
+                        <AvatarFallback className="bg-gray-100 text-black text-sm font-bold">{user.name?.[0] || "U"}</AvatarFallback>
                       </Avatar>
-                      <span className="font-medium text-black">{user.name || "User"}</span>
+                      <span className="text-base font-bold text-gray-800">{user.name?.split(" ")[0]}</span>
                     </Link>
                   </Button>
                 ) : (
-                  <Button size="sm" onClick={() => signIn("google")}>
-                    <LogIn className="h-4 w-4 mr-1" />
+                  <Button size="lg" onClick={() => signIn("google")} className="rounded-full bg-black text-white hover:bg-black/80 font-semibold px-6 text-base">
+                    <LogIn className="h-5 w-5 mr-2" />
                     Login
                   </Button>
                 )}
               </div>
+
+              {/* MOBILE MENU BUTTON */}
+              <div className="flex items-center md:hidden">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-black hover:bg-gray-100 h-10 w-10"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                >
+                  {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                </Button>
+              </div>
             </div>
           </div>
-
-          {/* MOBILE SEARCH */}
-          {mobileSearchOpen && (
-            <div className="md:hidden mt-3 pb-4">
-              <Input
-                autoFocus
-                placeholder="Search..."
-                className="bg-white/70 border-white/40 text-black"
-              />
-            </div>
-          )}
         </div>
       </div>
 
-      {/* MOBILE MENU */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-white/95 backdrop-blur-xl border-b border-white/30">
-          <div className="px-4 py-4 space-y-4">
-            <Link href="/" className="flex items-center gap-2 py-2 text-black">
-              <Home className="h-4 w-4" />
-              Home
-            </Link>
-            <Link href="/upload" className="flex items-center gap-2 py-2 text-black">
-              <Upload className="h-4 w-4" />
-              PDF Upload
-            </Link>
-            <Link href="/tools/pdf-to-summary" className="flex items-center gap-2 py-2 text-black">
-              <FileText className="h-4 w-4" />
-              PDF to Summary
-            </Link>
-            <Link href="/profile" className="flex items-center gap-2 py-2 text-black">
-              <User className="h-4 w-4" />
-              Profile
-            </Link>
+      {/* TRENDING BAR 
+          - Increased text size to text-sm (was xs)
+          - Increased height to h-12 (was h-10) for breathing room
+      */}
+      <div className="w-full bg-white/90 backdrop-blur-xl border-b border-gray-200 h-12 z-40">
+        <div className="max-w-7xl mx-auto px-4 h-full flex items-center gap-6 overflow-hidden">
+          <span className="flex items-center gap-2 text-sm font-bold text-gray-900 uppercase tracking-wide flex-shrink-0">
+            <TrendingUp className="h-4 w-4" />
+            Trending
+          </span>
+          <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
+            {trendingTopics.map((topic) => (
+              <Link
+                key={topic}
+                href={`/search?q=${encodeURIComponent(topic)}`}
+                className="text-sm font-medium text-gray-600 hover:text-black transition-colors whitespace-nowrap"
+              >
+                {topic}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
 
-            <div className="border-t border-white/30 pt-4">
-              {loading ? (
-                <div className="text-center text-black/60">Loading...</div>
-              ) : user ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.image || ""} />
-                      <AvatarFallback>{user.name?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium text-black">{user.name}</div>
-                      <div className="text-sm text-black/70">View profile</div>
-                    </div>
-                  </div>
-                  <Button className="w-full" variant="outline" onClick={() => signOut()}>
-                    Logout
-                  </Button>
+      {/* MOBILE DROPDOWN */}
+      {mobileMenuOpen && (
+        <div className="md:hidden absolute top-[calc(72px+48px)] left-0 right-0 border-b border-gray-200 bg-white/95 backdrop-blur-2xl shadow-xl animate-in slide-in-from-top-2">
+          <div className="p-5 space-y-5">
+            {/* Mobile Search */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+              <Input 
+                placeholder="Search..." 
+                className="pl-12 h-11 bg-gray-100 border-transparent text-black text-base" 
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Link href="/" className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-100 text-base font-semibold text-gray-800 transition-colors">
+                <Home className="h-6 w-6" /> 
+                Home
+              </Link>
+              <Link href="/upload" className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-100 text-base font-semibold text-gray-800 transition-colors">
+                <Upload className="h-6 w-6" /> 
+                Upload PDF
+              </Link>
+              <Link href="/generatesummary" className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-100 text-base font-semibold text-gray-800 transition-colors">
+                <FileText className="h-6 w-6" /> 
+                Generate Summary
+              </Link>
+              <Link href="/profile" className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-100 text-base font-semibold text-gray-800 transition-colors">
+                <User className="h-6 w-6" /> 
+                Profile
+              </Link>
+            </div>
+
+            <div className="pt-5 border-t border-gray-200">
+              {user ? (
+                <div className="flex items-center justify-between px-2">
+                   <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.image} />
+                        <AvatarFallback className="bg-gray-100 text-black font-bold">U</AvatarFallback>
+                      </Avatar>
+                      <div className="text-sm">
+                        <div className="font-bold text-gray-900 text-base">{user.name}</div>
+                        <div className="text-xs text-gray-500">{user.email}</div>
+                      </div>
+                   </div>
+                   <Button variant="ghost" size="icon" onClick={() => signOut()}>
+                      <LogOut className="h-6 w-6 text-red-500" />
+                   </Button>
                 </div>
               ) : (
-                <Button className="w-full" onClick={() => signIn("google")}>
+                <Button className="w-full bg-black text-white hover:bg-black/80 font-bold h-11 text-base" onClick={() => signIn("google")}>
+                  <LogIn className="h-5 w-5 mr-2" />
                   Login with Google
                 </Button>
               )}
@@ -191,25 +261,6 @@ export function Navbar() {
           </div>
         </div>
       )}
-
-      {/* TRENDING */}
-      <div className="bg-white/85 backdrop-blur-xl border-t border-white/30">
-        <div className="max-w-7xl mx-auto px-4 h-10 flex items-center gap-6 text-sm overflow-x-auto">
-          <span className="flex items-center gap-1 text-primary flex-shrink-0">
-            <TrendingUp className="h-4 w-4" />
-            Trending
-          </span>
-          {trendingTopics.map((topic) => (
-            <Link
-              key={topic}
-              href={`/search?q=${encodeURIComponent(topic)}`}
-              className="text-black/80 hover:text-black transition-colors whitespace-nowrap"
-            >
-              {topic}
-            </Link>
-          ))}
-        </div>
-      </div>
     </nav>
   )
 }
