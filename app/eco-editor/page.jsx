@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Leaf, Zap, Globe, AlertTriangle, CheckCircle2, Server, Trees } from "lucide-react";
+import { Leaf, Zap, Globe, AlertTriangle, CheckCircle2, Server, Trees, ArrowRight } from "lucide-react";
 
 export default function EcoAuditor() {
   const [url, setUrl] = useState("");
@@ -16,7 +16,6 @@ export default function EcoAuditor() {
     setResult(null);
 
     try {
-      // Ensure your Python backend is running on port 8000
       const response = await fetch(`http://localhost:8000/audit?url=${encodeURIComponent(url)}`);
       const data = await response.json();
       
@@ -33,40 +32,41 @@ export default function EcoAuditor() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfdfa] text-slate-900 pb-20">
+    // ADDED: pt-24 md:pt-32 to push content below your fixed Navbar
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900 pt-24 md:pt-32 pb-20">
       
-      {/* NOTE: This is a specific Sub-Header for the Tool. 
-        If your Main Layout already has a Navbar, you might have two bars. 
-        You can keep this as a "Tool Title" or remove it if it feels crowded.
-      */}
-      <div className="p-6 max-w-7xl mx-auto flex justify-between items-center border-b border-dashed border-green-100">
-        <div className="flex items-center gap-2 font-black text-2xl text-green-700">
-          <Leaf fill="currentColor" size={32} />
-          <span>EcoAudit</span>
-        </div>
-        <div className="bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">
-          2026 Sustainable Tech
+      {/* Tool Header - Optional (Kept distinct from your main Navbar) */}
+      <div className="max-w-7xl mx-auto px-6 mb-8">
+        <div className="flex justify-between items-center border-b border-dashed border-green-200 pb-4">
+          <div className="flex items-center gap-2 font-black text-xl md:text-2xl text-green-700">
+            <Leaf fill="currentColor" className="w-6 h-6 md:w-8 md:h-8" />
+            <span>EcoAudit</span>
+          </div>
+          <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider">
+            Beta 2026
+          </div>
         </div>
       </div>
 
-      <main className="max-w-5xl mx-auto p-6 pt-12">
-        <div className="text-center mb-16">
-          <h1 className="text-6xl font-black mb-6 tracking-tight text-slate-800 leading-tight">
-            How <span className="text-green-600 font-serif italic">Green</span> is your Software?
+      <main className="max-w-6xl mx-auto px-4 md:px-6">
+        {/* Hero Section */}
+        <div className="text-center mb-12 md:mb-16">
+          <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tight text-slate-900 leading-[1.1]">
+            How <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-400 font-serif italic">Green</span> is your Web?
           </h1>
-          <p className="text-xl text-slate-500 max-w-2xl mx-auto">
-            Our Auditor measures website carbon emissions and helps you reduce your digital footprint.
+          <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto px-4">
+            Measure your website's carbon footprint and discover actionable insights to build a sustainable digital future.
           </p>
         </div>
 
-        {/* Search Bar */}
-        <div className="max-w-3xl mx-auto bg-white p-2 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-100 flex items-center gap-2 mb-20">
-          <div className="pl-4 text-slate-400">
+        {/* Search Bar - Made Responsive */}
+        <div className="max-w-3xl mx-auto bg-white p-3 rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] border border-slate-100 flex flex-col md:flex-row items-center gap-3 mb-16 relative z-10">
+          <div className="pl-4 text-slate-400 hidden md:block">
             <Globe size={24} />
           </div>
           <input 
-            className="flex-1 p-4 rounded-2xl outline-none text-xl bg-transparent"
-            placeholder="Enter website URL (e.g. google.com)..."
+            className="w-full flex-1 p-4 rounded-2xl outline-none text-lg bg-transparent text-center md:text-left placeholder:text-slate-300"
+            placeholder="Enter website URL (e.g. google.com)"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && runAudit()}
@@ -74,89 +74,100 @@ export default function EcoAuditor() {
           <button 
             onClick={runAudit}
             disabled={loading}
-            className="bg-slate-900 hover:bg-black text-white px-10 py-5 rounded-2xl font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50"
+            className="w-full md:w-auto bg-slate-900 hover:bg-green-600 text-white px-8 py-4 rounded-2xl font-bold transition-all duration-300 shadow-lg active:scale-95 disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2"
           >
-            {loading ? "Scanning..." : "Audit Now"}
+            {loading ? (
+               <span className="flex items-center gap-2">Scanning... <span className="animate-spin">⟳</span></span>
+            ) : (
+               <>Audit Now <ArrowRight size={18}/></>
+            )}
           </button>
         </div>
 
+        {/* Error Message */}
         {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-2xl mb-10 text-center flex items-center justify-center gap-2">
+          <div className="max-w-3xl mx-auto bg-red-50 text-red-600 p-4 rounded-2xl mb-10 text-center flex items-center justify-center gap-2 animate-in fade-in slide-in-from-bottom-2">
             <AlertTriangle size={20} /> {error}
           </div>
         )}
 
         {/* Results Area */}
         {result && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in fade-in zoom-in duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in zoom-in duration-500">
             
-            {/* Eco Score Card */}
-            <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 flex flex-col items-center justify-center">
-              <span className="text-slate-400 font-bold text-sm uppercase mb-4 tracking-widest">Eco-Grade</span>
-              <div className="relative">
-                 <div className="text-8xl font-black text-green-600">{result.grade}</div>
-                 <CheckCircle2 className="absolute -top-2 -right-6 text-green-500" size={32} />
+            {/* 1. Eco Score Card (Main Highlight) */}
+            <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 flex flex-col items-center justify-center relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-emerald-600"></div>
+              <span className="text-slate-400 font-bold text-xs uppercase mb-4 tracking-widest">Sustainability Grade</span>
+              <div className="relative z-10">
+                 <div className="text-[8rem] leading-none font-black text-green-600 group-hover:scale-110 transition-transform duration-300">
+                    {result.grade}
+                 </div>
+                 <CheckCircle2 className="absolute top-2 -right-4 text-green-400" size={40} />
               </div>
-              <p className="mt-6 text-slate-500 text-center text-sm font-medium leading-relaxed">
-                This grade is assigned based on the total load size of the page assets.
+              <p className="mt-4 text-slate-500 text-center text-sm font-medium">
+                Based on page weight & resource load.
               </p>
             </div>
 
-            {/* Stats Dashboard */}
-            <div className="md:col-span-2 grid grid-cols-2 gap-6">
-              <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-                <div className="bg-orange-100 w-12 h-12 rounded-2xl flex items-center justify-center text-orange-600 mb-6">
-                  <Zap size={24} />
+            {/* 2. Stats Dashboard (Grid of 2 small cards) */}
+            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* CO2 Stat */}
+              <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 flex flex-col justify-between hover:border-orange-200 transition-colors">
+                <div className="bg-orange-50 w-14 h-14 rounded-2xl flex items-center justify-center text-orange-500 mb-4">
+                  <Zap size={28} />
                 </div>
-                <div className="text-4xl font-bold text-slate-800">{result.co2_emitted_grams}g</div>
-                <div className="text-slate-500 font-medium">CO2 per visit</div>
-              </div>
-
-              <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-                <div className="bg-blue-100 w-12 h-12 rounded-2xl flex items-center justify-center text-blue-600 mb-6">
-                  <Server size={24} />
-                </div>
-                <div className="text-4xl font-bold text-slate-800">{result.page_weight_mb} MB</div>
-                <div className="text-slate-500 font-medium">Total Page Weight</div>
-              </div>
-
-              <div className="bg-green-900 text-white p-8 rounded-[40px] shadow-lg col-span-2 flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold mb-2 uppercase tracking-wide">Sustainable Advice</h3>
-                  <p className="text-green-200 leading-relaxed">{result.advice}</p>
+                    <div className="text-4xl font-bold text-slate-800">{result.co2_emitted_grams}<span className="text-lg text-slate-400 font-medium">g</span></div>
+                    <div className="text-slate-500 font-medium mt-1">Carbon Emitted</div>
                 </div>
-                <div className="flex flex-col items-center">
-                  <Trees size={48} className="text-green-400 opacity-50 mb-2" />
-                  <span className="text-xs text-green-300 font-bold">Eco-Target</span>
+              </div>
+
+              {/* Page Weight Stat */}
+              <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 flex flex-col justify-between hover:border-blue-200 transition-colors">
+                <div className="bg-blue-50 w-14 h-14 rounded-2xl flex items-center justify-center text-blue-500 mb-4">
+                  <Server size={28} />
+                </div>
+                <div>
+                    <div className="text-4xl font-bold text-slate-800">{result.page_weight_mb} <span className="text-lg text-slate-400 font-medium">MB</span></div>
+                    <div className="text-slate-500 font-medium mt-1">Total Resource Size</div>
+                </div>
+              </div>
+
+              {/* Advice Section (Full width of the sub-grid) */}
+              <div className="bg-[#1a2e22] text-white p-8 rounded-[32px] shadow-lg sm:col-span-2 flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-green-500 rounded-full opacity-10 blur-3xl"></div>
+                <div className="relative z-10">
+                  <h3 className="text-lg font-bold mb-2 uppercase tracking-wide text-green-400 flex items-center gap-2">
+                    <Trees size={18} /> Optimization Tip
+                  </h3>
+                  <p className="text-green-100 leading-relaxed text-lg font-light">"{result.advice}"</p>
                 </div>
               </div>
             </div>
 
-            {/* Technical Issues Section (Points) */}
+            {/* 3. Technical Issues (Full Width at bottom) */}
             {result.issues && result.issues.length > 0 && (
-              <div className="col-span-1 md:col-span-3 mt-4 bg-white p-8 rounded-[40px] shadow-sm border border-red-50">
-                <div className="flex items-center gap-2 text-red-500 font-bold mb-6 text-xl uppercase tracking-tight">
+              <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-white p-8 rounded-[32px] shadow-sm border border-red-100">
+                <div className="flex items-center gap-3 text-red-500 font-bold mb-6 text-lg uppercase tracking-tight border-b border-red-50 pb-4">
                   <AlertTriangle size={24} />
-                  <span>Detected Technical Issues</span>
+                  <span>Optimization Opportunities</span>
                 </div>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {result.issues.map((issue, index) => (
-                    <div key={index} className="flex gap-4 p-4 bg-red-50 rounded-2xl text-slate-700 items-start transition-hover hover:bg-red-100">
-                      <div className="bg-red-500 w-2 h-2 rounded-full mt-2.5 flex-shrink-0" />
-                      <p className="font-medium leading-relaxed tracking-tight">{issue}</p>
+                    <div key={index} className="flex gap-4 p-4 bg-red-50/50 rounded-2xl text-slate-700 items-start hover:bg-red-50 transition-colors">
+                      <div className="bg-red-500 w-2 h-2 rounded-full mt-2.5 flex-shrink-0 shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+                      <p className="font-medium leading-relaxed text-sm md:text-base">{issue}</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
           </div>
         )}
       </main>
 
-      <footer className="mt-20 border-t py-10 text-center text-slate-400 text-xs uppercase tracking-widest font-bold">
-        Built for Green Tech Hackathon 2026 • Powering Sustainable Digital Futures
-      </footer>
+     
     </div>
   );
 }
