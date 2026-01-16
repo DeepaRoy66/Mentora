@@ -9,7 +9,7 @@ export default function QuizGeneratorPage() {
   const router = useRouter();
 
   const [step, setStep] = useState(1);
-  // IMPORTANT: Ensure generatedQuestions is initialized to prevent ReferenceErrors
+
   const [formData, setFormData] = useState({
     pdfFile: null,
     contestantCount: "",
@@ -22,8 +22,7 @@ export default function QuizGeneratorPage() {
   const [joinUrl, setJoinUrl] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [processError, setProcessError] = useState("");
-  
-  // 1. Handle File Selection (Standard Synchronous Event Handler)
+
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
