@@ -15,19 +15,14 @@ import {
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input" 
-import { Avatar, AvatarFallback,AvatarImage } from "./ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { useState, useRef, useEffect } from "react"
 import { signIn, signOut, useSession } from "next-auth/react"
 import { cn } from "@/lib/utils" 
 
 export function Navbar() {
-  const trendingTopics = [
-    "Next.js 16",
-    "AI in Education",
-    "Quantum Computing",
-    "UI Design Trends",
-    "Sustainable Energy",
-  ]
+  // 1. CHANGE: Start with empty array so nothing shows initially
+  const [trendingTopics, setTrendingTopics] = useState([])
 
   const { data: session, status } = useSession()
   const loading = status === "loading"
@@ -45,6 +40,25 @@ export function Navbar() {
     }
   }, [isSearchOpen])
 
+  // Fetch trending topics from backend
+  useEffect(() => {
+    const fetchTrending = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/api/trending") 
+        if (res.ok) {
+          const data = await res.json()
+          if (data.categories && data.categories.length > 0) {
+            setTrendingTopics(data.categories)
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch trending topics", error)
+        // We do NOTHING here, so the list remains empty [] and the bar stays hidden
+      }
+    }
+    fetchTrending()
+  }, [])
+
   // Handle clicking outside to close search
   const handleBlur = (e) => {
     if (!e.currentTarget.contains(e.relatedTarget)) {
@@ -57,16 +71,12 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col font-sans tracking-tight shadow-sm">
       
-      {/* MAIN NAVBAR
-          - Increased height slightly to h-[72px] to accommodate larger text nicely.
-          - Kept bg-white/90 (Forced White Glass)
-          - Removed bottom border here (seamless look)
-      */}
+      {/* MAIN NAVBAR */}
       <div className="w-full bg-white/90 backdrop-blur-xl transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-[72px] items-center justify-between gap-6">
             
-            {/* LOGO - Larger (3xl) and Extra Bold */}
+            {/* LOGO */}
             <Link 
               href="/" 
               className="text-3xl font-extrabold text-black hover:opacity-80 transition-opacity tracking-tighter"
@@ -91,7 +101,6 @@ export function Navbar() {
                     <Input
                       ref={searchInputRef}
                       placeholder="Search topics..."
-                      // Increased height to h-10 for better touch target
                       className="pl-11 pr-10 h-10 bg-gray-100/80 border-transparent text-black placeholder:text-gray-500 rounded-full focus-visible:ring-1 focus-visible:ring-gray-300 text-base"
                     />
                     <button 
@@ -113,7 +122,7 @@ export function Navbar() {
                 )}
               </div>
 
-              {/* NAV LINKS - LARGER TEXT (text-base instead of sm) */}
+              {/* NAV LINKS */}
               <div className="hidden md:flex items-center gap-2">
                 <Button variant="ghost" asChild className="text-base font-semibold text-gray-700 hover:text-black hover:bg-gray-100/80 h-10 px-4">
                   <Link href="/">
@@ -184,29 +193,28 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* TRENDING BAR 
-          - Increased text size to text-sm (was xs)
-          - Increased height to h-12 (was h-10) for breathing room
-      */}
-      <div className="w-full bg-white/90 backdrop-blur-xl border-b border-gray-200 h-12 z-40">
-        <div className="max-w-7xl mx-auto px-4 h-full flex items-center gap-6 overflow-hidden">
-          <span className="flex items-center gap-2 text-sm font-bold text-gray-900 uppercase tracking-wide flex-shrink-0">
-            <TrendingUp className="h-4 w-4" />
-            Trending
-          </span>
-          <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
-            {trendingTopics.map((topic) => (
-              <Link
-                key={topic}
-                href={`/search?q=${encodeURIComponent(topic)}`}
-                className="text-sm font-medium text-gray-600 hover:text-black transition-colors whitespace-nowrap"
-              >
-                {topic}
-              </Link>
-            ))}
+      {/* 2. CHANGE: TRENDING BAR - Only renders if trendingTopics has items */}
+      {trendingTopics.length > 0 && (
+        <div className="w-full bg-white/90 backdrop-blur-xl border-b border-gray-200 h-12 z-40">
+          <div className="max-w-7xl mx-auto px-4 h-full flex items-center gap-6 overflow-hidden">
+            <span className="flex items-center gap-2 text-sm font-bold text-gray-900 uppercase tracking-wide flex-shrink-0">
+              <TrendingUp className="h-4 w-4" />
+              Trending
+            </span>
+            <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
+              {trendingTopics.map((topic) => (
+                <Link
+                  key={topic}
+                  href={`/search?q=${encodeURIComponent(topic)}`}
+                  className="text-sm font-medium text-gray-600 hover:text-black transition-colors whitespace-nowrap"
+                >
+                  {topic}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* MOBILE DROPDOWN */}
       {mobileMenuOpen && (
