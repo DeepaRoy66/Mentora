@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase'; 
-import { BiX, BiFileBlank, BiErrorAlt } from 'react-icons/bi';
+import { BiX, BiFileBlank } from 'react-icons/bi';
 import { useSession } from "next-auth/react";
 
 export default function UploadPdfSection({ categories, initialData, initialFile, close, notify }) {
@@ -85,11 +85,11 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
                 pdfUrl = publicUrl;
             }
             
-        
             const baseUrl = "http://localhost:8000";
             const url = initialData ? `${baseUrl}/api/uploads/${initialData._id}` : `${baseUrl}/api/uploads`;
             const method = initialData ? 'PUT' : 'POST';
 
+            // 2. SEND METADATA + USER INFO TO BACKEND
             const res = await fetch(url, {
                 method: method,
                 headers: { 
@@ -103,7 +103,10 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
                     tags: tags, 
                     category: form.category, 
                     commentsEnabled: form.comments, 
-                    visibility: form.visibility 
+                    visibility: form.visibility,
+                    // --- NEW: SENDING USER INFO ---
+                    uploaderEmail: session.user.email,
+                    uploaderImage: session.user.image 
                 })
             });
             

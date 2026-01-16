@@ -87,10 +87,29 @@ export default function LandingPage() {
                         {item.description || "No description provided."}
                       </p>
 
-                      {/* Uploader */}
-                      <div className="mt-auto pt-2 text-xs text-gray-400">
-                        Uploaded by: <span className="text-gray-600">{item.uploaderEmail.split("@")[0]}</span>
+                      {/* Uploader Section */}
+                      <div className="mt-auto pt-4 flex items-center gap-2 border-t border-gray-100">
+                        {/* 1. Check if uploaderImage exists */}
+                        {item.uploaderImage ? (
+                           <img 
+                             src={item.uploaderImage} 
+                             alt="Uploader" 
+                             className="w-6 h-6 rounded-full object-cover border border-gray-200"
+                           />
+                        ) : (
+                           // 2. Fallback if no image
+                           <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                             {item.uploaderEmail ? item.uploaderEmail[0].toUpperCase() : "U"}
+                           </div>
+                        )}
+                        
+                        <div className="text-xs text-gray-400">
+                           <span className="text-gray-600 font-medium">
+                             {item.uploaderEmail ? item.uploaderEmail.split("@")[0] : "Anonymous"}
+                           </span>
+                        </div>
                       </div>
+
                     </div>
                   </Link>
                 ))}
