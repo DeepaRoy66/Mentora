@@ -2,97 +2,121 @@
 
 import React, { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Upload, Users, FileQuestion, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { Upload, Users, FileQuestion, ArrowRight, Loader2, AlertCircle, Hash } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function QuizGeneratorPage() {
+  const router = useRouter();
+
   const [step, setStep] = useState(1);
+  // IMPORTANT: Ensure generatedQuestions is initialized to prevent ReferenceErrors
   const [formData, setFormData] = useState({
     pdfFile: null,
     contestantCount: "",
+    mcqCount: "",
     questionTime: 30,
-    generatedQuestions: null, // NEW: Store real MCQs
+    generatedQuestions: null, 
   });
+
   const [sessionId, setSessionId] = useState(null);
   const [joinUrl, setJoinUrl] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false); // NEW: Loading state for OCR
-  const [processError, setProcessError] = useState(""); // NEW: Error state
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processError, setProcessError] = useState("");
   
-  const router = useRouter();
-
-  // STEP 1: Handle File Change -> Call OCR API
-  const handleFileChange = async (e) => {
+  // 1. Handle File Selection (Standard Synchronous Event Handler)
+  const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setFormData({ ...formData, pdfFile: e.target.files[0] });
-      
-      // IMMEDIATELY PROCESS PDF
       const file = e.target.files[0];
+      // Update Form Data
+      setFormData(prev => ({ ...prev, pdfFile: file }));
+      
+      // Reset State when file changes
+      setFormData(prev => ({ ...prev, generatedQuestions: null }));
+      setProcessError("");
+    }
+  };
+
+  // 2. Handle Next Step (Fixed Async Event Handler)
+  const handleNext = async () => {
+    // Validation
+    if (step === 1 && !formData.pdfFile) return alert("Please upload a PDF first.");
+    if (step === 2 && !formData.contestantCount) return alert("Enter contestant count.");
+
+    if (step === 3) {
+      if (!formData.pdfFile) return alert("No PDF uploaded.");
+      if (!formData.mcqCount || parseInt(formData.mcqCount) <= 0) {
+         return alert("Please enter a valid number of MCQs.");
+      }
+
       setIsProcessing(true);
       setProcessError("");
 
       try {
+        // --- PHASE 1: Process PDF to get Questions ---
         const formDataToApi = new FormData();
-        formDataToApi.append("file", file);
-        formDataToApi.append("mode", "mcq"); // We want MCQs
+        formDataToApi.append("file", formData.pdfFile);
+        formDataToApi.append("mode", "mcq");
+        formDataToApi.append("mcq_count", formData.mcqCount);
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/process_pdf`, {
+        // API URL updated to match Backend Prefix (/mcq)
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mcq/process_pdf`, {
           method: "POST",
-          body: formDataToApi, // No headers needed for FormData
+          body: formDataToApi,
         });
 
         if (!res.ok) {
-          const errData = await res.json();
+          const errData = await res.json().catch(() => ({}));
           throw new Error(errData.detail || "Failed to process PDF.");
         }
 
         const data = await res.json();
         
-        // SAFETY: Validate that data is actually an array of questions
+        // Validate response format
         if (data.data && Array.isArray(data.data)) {
+          // Save questions to state
           setFormData(prev => ({ ...prev, generatedQuestions: data.data }));
+          
+          // --- PHASE 2: Create the Game Session ---
+          const sessionRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mcq/session/create`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              playerLimit: parseInt(formData.contestantCount),
+              questionTime: parseInt(formData.questionTime),
+              questions: data.data // Pass the generated questions to the session
+            }),
+          });
+
+          if (!sessionRes.ok) {
+             throw new Error("Failed to create game session.");
+          }
+
+          const sessionData = await sessionRes.json();
+          
+          // Set Session State
+          setSessionId(sessionData.sessionId);
+          setJoinUrl(`${window.location.origin}/join?session=${sessionData.sessionId}`);
+          
+          // Automatically advance to Step 4 (QR Code)
+          setStep(4);
         } else {
           throw new Error("Invalid response format from server.");
         }
 
       } catch (err) {
-        console.error("OCR Error:", err);
+        console.error("Processing Error:", err);
         setProcessError(err.message || "Error processing PDF.");
-        setFormData(prev => ({ ...prev, generatedQuestions: null })); // Clear data
+        setFormData(prev => ({ ...prev, generatedQuestions: null })); 
       } finally {
         setIsProcessing(false);
       }
-    }
-  };
-
-  const handleNext = async () => {
-    if (step === 1 && !formData.pdfFile) return alert("Please upload a PDF first.");
-    if (step === 2 && !formData.contestantCount) return alert("Enter contestant count.");
-    
-    // Removed Step 3 check (MCQ Count) because it comes from PDF
-
-    if (step === 3) {
-      // Validate we have real questions
-      if (!formData.generatedQuestions) {
-        return alert("No questions generated. Please re-upload PDF.");
-      }
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mcq/session/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          playerLimit: Number(formData.contestantCount),
-          questionTime: Number(formData.questionTime),
-          questions: formData.generatedQuestions // SEND REAL QUESTIONS
-        }),
-      });
-      const data = await res.json();
-      setSessionId(data.sessionId);
-      setJoinUrl(`${window.location.origin}/mcq-contest/join/${data.sessionId}`);
-      setStep(4);
     } else {
+      // Standard Next Step for 1 -> 2 -> 3
       setStep(step + 1);
     }
   };
+
+  // --- Render Helpers ---
 
   const renderStep1 = () => (
     <div className="space-y-4">
@@ -108,31 +132,6 @@ export default function QuizGeneratorPage() {
       />
       
       {formData.pdfFile && <p className="text-green-600">Selected: {formData.pdfFile.name}</p>}
-      
-      {/* Processing Indicator */}
-      {isProcessing && (
-        <div className="flex items-center gap-2 text-blue-600 animate-pulse">
-           <Loader2 size={20} className="animate-spin" />
-           <span className="text-sm font-bold">Analyzing PDF and Generating MCQs... (Do not close)</span>
-        </div>
-      )}
-
-      {/* Error Display */}
-      {processError && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-200">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={16} />
-            <span>{processError}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Success Indicator */}
-      {formData.generatedQuestions && (
-        <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm border border-green-200">
-          <span className="font-bold">✅ Success! {formData.generatedQuestions.length} Questions Generated.</span>
-        </div>
-      )}
     </div>
   );
 
@@ -154,17 +153,58 @@ export default function QuizGeneratorPage() {
   const renderStep3 = () => (
     <div className="space-y-4">
       <h2 className="text-xl font-bold flex items-center gap-2">
-        <FileQuestion className="w-6 h-6 text-blue-600" /> Timer Settings
+        <Hash className="w-6 h-6 text-blue-600" /> MCQ Generation
       </h2>
-      {/* REMOVED MCQ Count Input */}
       
-      <input
-        type="number"
-        placeholder="Time per question (seconds)"
-        value={formData.questionTime}
-        onChange={(e) => setFormData({ ...formData, questionTime: e.target.value })}
-        className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-      />
+      {/* MCQ Count Input */}
+      <div className="mb-4">
+        <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Number of MCQs</label>
+        <input
+          type="number"
+          placeholder="e.g. 10"
+          value={formData.mcqCount}
+          onChange={(e) => setFormData({ ...formData, mcqCount: e.target.value })}
+          className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Time per question (seconds)</label>
+        <input
+          type="number"
+          placeholder="30"
+          value={formData.questionTime}
+          onChange={(e) => setFormData({ ...formData, questionTime: e.target.value })}
+          className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      {/* Loading Indicator */}
+      {isProcessing && (
+        <div className="flex items-center gap-2 text-blue-600 animate-pulse">
+           <Loader2 size={20} className="animate-spin" />
+           <span className="text-sm font-bold">
+             Generating Questions...
+           </span>
+        </div>
+      )}
+
+      {/* Success Indicator */}
+      {formData.generatedQuestions && !processError && !isProcessing && (
+        <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm border border-green-200">
+          <span className="font-bold">✅ Success! {formData.generatedQuestions.length} Questions Generated.</span>
+        </div>
+      )}
+
+      {/* Error Display */}
+      {processError && (
+        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-200">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={16} />
+            <span>{processError}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -198,10 +238,12 @@ export default function QuizGeneratorPage() {
         {step < 4 && (
           <button
             onClick={handleNext}
-            disabled={step === 3 && !formData.generatedQuestions} // Disable if no questions
+            disabled={isProcessing || (step === 3 && (!formData.mcqCount || parseInt(formData.mcqCount) <= 0))}
             className="mt-4 w-full py-3 bg-black text-white rounded-lg font-semibold flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {step === 3 ? "Create Session" : "Next Step"} <ArrowRight size={18} />
+            {/* Dynamic Text & Loader */}
+            {isProcessing && step === 3 ? <Loader2 size={18} className="animate-spin" /> : null}
+            <span>{step === 3 ? "Generate Questions" : "Next Step"} <ArrowRight size={18} /></span>
           </button>
         )}
         {step > 1 && step < 4 && (
