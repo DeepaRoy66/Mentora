@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Trophy, Users, LayoutList, ShieldAlert, CheckCircle } from "lucide-react";
+import { Trophy, Users, LayoutList, ShieldAlert, CheckCircle, LogOut, X } from "lucide-react";
 
 export default function MatchPage() {
   const params = useParams();
@@ -14,11 +14,37 @@ export default function MatchPage() {
   const [allQuestions, setAllQuestions] = useState([]);
   const [winners, setWinners] = useState([]);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(0); // Question Timer
+  const [breakTimeLeft, setBreakTimeLeft] = useState(0); // Break Timer
+  
   const [socket, setSocket] = useState(null);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+
+  const syncTimer = (endTime, isBreak = false) => {
+    const now = Date.now() / 1000;
+    const diff = Math.round(endTime - now);
+    if (isBreak) {
+        setBreakTimeLeft(Math.max(0, diff));
+    } else {
+        setTimeLeft(Math.max(0, diff));
+    }
+  };
+
+  const confirmLeave = async () => {
+    setShowLeaveModal(false);
+    const uid = localStorage.getItem("quiz_uid");
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mcq/session/${params.id}/leave`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ uid })
+    });
+    localStorage.removeItem("quiz_uid");
+    localStorage.removeItem("quiz_role");
+    localStorage.removeItem("quiz_name");
+    router.push("/");
+  };
 
   useEffect(() => {
-    // 1. Find who I am (Admin or Player)
     const adminUid = localStorage.getItem(`admin_uid_${params.id}`);
     const playerUid = localStorage.getItem("quiz_uid");
     const name = localStorage.getItem("quiz_name") || "Admin";
@@ -28,61 +54,121 @@ export default function MatchPage() {
     setUserData({ uid, name });
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${protocol}://${window.location.host.replace(":3000", ":8000")}/mcq/ws/${params.id}/${uid}`);
+    const wsHost = window.location.host.includes('localhost') 
+      ? window.location.host.replace(':3000', ':8000') 
+      : window.location.host;
+      
+    const ws = new WebSocket(`${protocol}://${wsHost}/mcq/ws/${params.id}/${uid}`);
 
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
+      
       if (msg.type === "INIT") {
         setPlayers(msg.payload.players);
         setGameState(msg.payload.state);
         const me = msg.payload.players.find(p => p.id === uid);
         if (me) setUserData(prev => ({ ...prev, role: me.role }));
       } 
+      else if (msg.type === "SESSION_CANCELLED") {
+          alert("The admin cancelled the session.");
+          localStorage.removeItem("quiz_uid");
+          router.push("/");
+      }
       else if (msg.type === "NEW_QUESTION") {
         setGameState("QUESTION");
         setCurrentQuestion(msg.payload);
         setSelectedAnswer(null);
-        setTimeLeft(Math.round(msg.payload.endTime - (Date.now() / 1000)));
+        setBreakTimeLeft(0); // Clear break timer
+        syncTimer(msg.payload.endTime, false);
+      }
+      else if (msg.type === "CURRENT_QUESTION") {
+        setGameState("QUESTION");
+        setCurrentQuestion(msg.payload);
+        setSelectedAnswer(null);
+        syncTimer(msg.payload.endTime, false);
       }
       else if (msg.type === "ROUND_RESULT") {
         setGameState("LEADERBOARD");
         setPlayers(msg.leaderboard);
+        setTimeLeft(0); // Clear question timer
+        if (msg.break_end) {
+            syncTimer(msg.break_end, true);
+        }
       }
       else if (msg.type === "GAME_OVER") {
         setGameState("FINISHED");
         setPlayers(msg.payload);
         setWinners(msg.winners);
         setAllQuestions(msg.questions);
+        setBreakTimeLeft(0);
       }
     };
+    
     setSocket(ws);
     return () => ws.close();
   }, [params.id]);
 
+  // Timers
   useEffect(() => {
-    if (gameState !== "QUESTION" || timeLeft <= 0) return;
-    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    return () => clearInterval(timer);
+    if (gameState === "QUESTION" && timeLeft > 0) {
+      const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+      return () => clearInterval(timer);
+    }
   }, [timeLeft, gameState]);
 
+  useEffect(() => {
+    if (gameState === "LEADERBOARD" && breakTimeLeft > 0) {
+      const timer = setInterval(() => setBreakTimeLeft(prev => prev - 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [breakTimeLeft, gameState]);
+
   const isSpectator = userData?.role === "spectator";
+  const leaderboardPlayers = players.filter(p => p.role === 'player');
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 font-sans">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="fixed top-4 right-4 z-50">
+            <button onClick={() => setShowLeaveModal(true)} className="flex items-center gap-2 bg-slate-800 hover:bg-red-600 text-white px-4 py-2 rounded-full transition-colors shadow-lg border border-slate-700">
+                <LogOut size={16}/> Leave Match
+            </button>
+        </div>
+
+        {/* Custom Leave Modal */}
+        {showLeaveModal && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+                <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl max-w-sm w-full shadow-2xl">
+                    <h3 className="text-2xl font-black text-white mb-2">Leave Match?</h3>
+                    <p className="text-slate-400 mb-6">You cannot rejoin after leaving.</p>
+                    <div className="flex gap-3">
+                        <button onClick={() => setShowLeaveModal(false)} className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors">Stay</button>
+                        <button onClick={confirmLeave} className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-colors">Leave</button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8 pt-16">
         
         {/* MAIN GAME AREA */}
         <div className="lg:col-span-3 space-y-6">
           
-          {/* Waiting for Start */}
           {gameState === "WAITING" && (
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-16 text-center">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-16 text-center animate-in fade-in">
                <Users className="mx-auto text-blue-500 mb-6 animate-pulse" size={60} />
-               <h2 className="text-3xl font-black">Waiting for Match to Start...</h2>
+               <h2 className="text-3xl font-black mb-4">Waiting for Host to Start...</h2>
+               <div className="flex justify-center gap-4 mt-8 flex-wrap">
+                   {players.map((p, i) => (
+                       <div key={p.id} className="bg-slate-800 px-6 py-3 rounded-xl border border-slate-700">
+                           <span className="font-bold">{p.name}</span>
+                           <span className="text-xs text-slate-400 ml-2 uppercase">({p.role})</span>
+                       </div>
+                   ))}
+               </div>
+               {players.length === 0 && <p className="text-slate-500 mt-4 italic">Lobby is empty</p>}
             </div>
           )}
 
-          {/* Spectator Warning */}
           {isSpectator && gameState === "QUESTION" && (
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 text-center">
               <ShieldAlert className="mx-auto text-amber-500 mb-2" />
@@ -90,7 +176,6 @@ export default function MatchPage() {
             </div>
           )}
 
-          {/* Question View (Active Players Only) */}
           {!isSpectator && gameState === "QUESTION" && currentQuestion && (
             <div className="bg-white rounded-[2rem] p-8 md:p-12 shadow-2xl animate-in zoom-in duration-300">
                <div className="flex justify-between items-center mb-8">
@@ -126,19 +211,22 @@ export default function MatchPage() {
             </div>
           )}
 
-          {/* Leaderboard/Round Result Intermission */}
           {gameState === "LEADERBOARD" && (
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 text-center animate-in fade-in">
                 <CheckCircle className="mx-auto text-green-500 mb-4" size={48} />
                 <h2 className="text-2xl font-bold mb-2 text-slate-400 uppercase tracking-widest">Round Finished</h2>
                 <p className="text-5xl font-black text-white">Get Ready!</p>
+                {/* BREAK TIMER */}
+                {breakTimeLeft > 0 && (
+                    <div className="mt-6 text-blue-400 font-mono font-bold text-xl">
+                        Next question in {breakTimeLeft}s
+                    </div>
+                )}
             </div>
           )}
 
-          {/* GAME FINISHED - WINNER TROPHY & REVIEW */}
           {gameState === "FINISHED" && (
             <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-1000">
-              {/* TROPHY SECTION */}
               <div className="bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-600 rounded-[3rem] p-12 text-center shadow-2xl relative overflow-hidden">
                 <Trophy className="mx-auto text-white drop-shadow-lg mb-6" size={100} />
                 <h2 className="text-5xl font-black text-white mb-4 uppercase">
@@ -154,7 +242,6 @@ export default function MatchPage() {
                 </div>
               </div>
 
-              {/* FULL QUESTION REVIEW */}
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
                 <h3 className="text-xl font-black mb-6 flex items-center gap-3">
                   <LayoutList className="text-blue-500" /> FULL QUESTION REVIEW
@@ -177,7 +264,7 @@ export default function MatchPage() {
           )}
         </div>
 
-        {/* SIDEBAR LEADERBOARD (Always Visible) */}
+        {/* SIDEBAR LEADERBOARD */}
         <div className="lg:col-span-1">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sticky top-6 shadow-xl">
              <div className="flex items-center justify-between mb-6">
@@ -187,7 +274,7 @@ export default function MatchPage() {
                 <span className="bg-blue-500/10 text-blue-500 text-[10px] font-black px-2 py-1 rounded">LIVE</span>
              </div>
              <div className="space-y-3">
-                {players.map((p, i) => (
+                {leaderboardPlayers.length > 0 ? leaderboardPlayers.map((p, i) => (
                   <div key={p.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
                     p.id === userData?.uid ? "bg-blue-600 border-blue-400 ring-4 ring-blue-500/20 scale-105" : "bg-slate-950 border-slate-800"
                   }`}>
@@ -197,7 +284,7 @@ export default function MatchPage() {
                     </div>
                     <span className="font-mono font-black text-xs">{p.score}</span>
                   </div>
-                ))}
+                )) : <p className="text-center text-slate-600 text-xs italic mt-4">No active players</p>}
              </div>
           </div>
         </div>
