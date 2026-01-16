@@ -12,6 +12,8 @@ import {
   User,
   TrendingUp,
   LogOut,
+  Swords,
+  Leaf,
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input" 
@@ -146,14 +148,14 @@ export function Navbar() {
                 </Button>
                 <Button variant="ghost" asChild className="text-base font-semibold text-gray-700 hover:text-black hover:bg-gray-100/80 h-10 px-4">
                   <Link href="/mcq-contest">
-                    <FileText className="h-5 w-5 mr-2" />
+                    <Swords className="h-5 w-5 mr-2" />
                     MCQ-War
                   </Link>
                 </Button>
                  <Button variant="ghost" asChild className="text-base font-semibold text-gray-700 hover:text-black hover:bg-gray-100/80 h-10 px-4">
                   <Link href="/eco-editor">
-                    <FileText className="h-5 w-5 mr-2" />
-                    Ecoediotr
+                    <Leaf className="h-5 w-5 mr-2" />
+                    Ecoeditor
                   </Link>
                 </Button>
               </div>
