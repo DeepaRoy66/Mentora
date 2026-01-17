@@ -55,7 +55,7 @@ export default function EcoAuditor() {
             How <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-400 font-serif italic">Green</span> is your Web?
           </h1>
           <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto px-4">
-            Measure your website's carbon footprint and discover actionable insights to build a sustainable digital future.
+            Measure your website&apos;s carbon footprint and discover actionable insights to build a sustainable digital future.
           </p>
         </div>
 
@@ -141,7 +141,8 @@ export default function EcoAuditor() {
                   <h3 className="text-lg font-bold mb-2 uppercase tracking-wide text-green-400 flex items-center gap-2">
                     <Trees size={18} /> Optimization Tip
                   </h3>
-                  <p className="text-green-100 leading-relaxed text-lg font-light">"{result.advice}"</p>
+                  {/* FIX: Escaped quotes below (&quot;) */}
+                  <p className="text-green-100 leading-relaxed text-lg font-light">&quot;{result.advice}&quot;</p>
                 </div>
               </div>
             </div>
@@ -166,8 +167,6 @@ export default function EcoAuditor() {
           </div>
         )}
       </main>
-
-     
     </div>
   );
 }
