@@ -1,11 +1,17 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useSession } from 'next-auth/react';
+import { authFetch } from '@/lib/api';
 
 export default function StudyAssistant() {
+  const { data: session } = useSession();
+  
   // State Management
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [resultText, setResultText] = useState(''); 
+  const [quizData, setQuizData] = useState([]); 
   const [activeCategory, setActiveCategory] = useState(null); // 'summary' or 'qa'
   
   // Results State
@@ -18,12 +24,11 @@ export default function StudyAssistant() {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [visibleHints, setVisibleHints] = useState({});
+  const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [visibleAnswers, setVisibleAnswers] = useState({}); 
 
   // Refs
   const fileInputRef = useRef(null);
-
-  // --- Handlers ---
 
   const handleFileClick = () => {
     fileInputRef.current.click();
@@ -133,7 +138,7 @@ export default function StudyAssistant() {
     setVisibleAnswers((prev) => ({ ...prev, [index]: !prev[index] }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (submitted) return;
     let currentScore = 0;
     quizData.forEach((q, index) => {
@@ -141,6 +146,33 @@ export default function StudyAssistant() {
     });
     setScore(currentScore);
     setSubmitted(true);
+
+    // Call quiz completion API if user is logged in
+    if (session?.user?.email) {
+      setSubmittingQuiz(true);
+      try {
+        const quizId = file ? `${file.name}-${Date.now()}` : `quiz-${Date.now()}`;
+        
+        const response = await authFetch('/api/quiz/complete', {
+          method: 'POST',
+          body: JSON.stringify({
+            quizId: quizId,
+            score: currentScore,
+            totalQuestions: quizData.length
+          })
+        });
+
+        if (response.ok) {
+          console.log('Quiz completion recorded successfully');
+        } else {
+          console.error('Failed to record quiz completion:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error recording quiz completion:', error);
+      } finally {
+        setSubmittingQuiz(false);
+      }
+    }
   };
 
   const resetApp = () => {
