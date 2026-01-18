@@ -79,8 +79,8 @@ export default function AskQuestionPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 max-w-4xl">
         <Card className="bg-white border-2 border-gray-100 shadow-xl rounded-3xl overflow-hidden hover:shadow-2xl transition-shadow duration-300">
-          <CardHeader className="px-6 sm:px-8 lg:px-10 pt-8 sm:pt-10 pb-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-b border-gray-200">
-            <div className="space-y-3">
+          <CardHeader className="px-6 sm:px-8 lg:px-10 pt-2 sm:pt-4 pb-2 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-b border-gray-200">
+            <div className="space-y-0">
               <CardTitle className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
                 Ask a Question
               </CardTitle>
@@ -101,7 +101,7 @@ export default function AskQuestionPage() {
                     id="question-title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="What's your question?"
+                    placeholder="Question Title"
                     maxLength={200}
                     required
                     className="h-14 text-base bg-white text-gray-900 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-0 transition-all duration-200 placeholder:text-gray-400 hover:border-gray-300"

@@ -34,7 +34,7 @@ export default function ProfilePage() {
     // 2. Fetch Stats from PYTHON Backend
     // Must use x-user-email header so Python knows who we are
     fetch("http://127.0.0.1:8000/api/user-stats", {
-      headers: {
+      headers: { 
         "x-user-email": session.user.email,
       },
     })
@@ -100,7 +100,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-white">
       <Card className="min-h-screen rounded-none border-0 shadow-none">
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 md:px-16 py-12 md:py-24 relative">
           <div className="flex flex-col md:flex-row items-center gap-8 md:gap-10 text-white w-full">
@@ -168,56 +168,56 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button
               variant="outline"
-              className="h-auto py-4 flex flex-col items-center gap-2"
+              className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-gray-50 border border-gray-300 text-black font-semibold"
               onClick={() => router.push("/questions")}
             >
-              <HelpCircle className="w-6 h-6" />
-              <span>Browse Questions</span>
+              <HelpCircle className="w-6 h-6 text-black" />
+              <span className="text-black">Browse Questions</span>
             </Button>
             <Button
               variant="outline"
-              className="h-auto py-4 flex flex-col items-center gap-2"
+              className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-gray-50 border border-gray-300 text-black font-semibold"
               onClick={() => router.push("/questions/ask")}
             >
-              <MessageSquare className="w-6 h-6" />
-              <span>Ask Question</span>
+              <MessageSquare className="w-6 h-6 text-black" />
+              <span className="text-black">Ask Question</span>
             </Button>
             <Button
               variant="outline"
-              className="h-auto py-4 flex flex-col items-center gap-2"
+              className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-gray-50 border border-gray-300 text-black font-semibold"
               onClick={() => router.push("/badges")}
             >
-              <Trophy className="w-6 h-6" />
-              <span>View Badges</span>
+              <Trophy className="w-6 h-6 text-black" />
+              <span className="text-black">View Badges</span>
             </Button>
           </div>
 
           {/* Contribution Details */}
           {contributions && (
             <div>
-              <h2 className="text-2xl font-bold mb-4">Contribution Details</h2>
+              <h2 className="text-2xl font-bold mb-4 text-black">Contribution Details</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-500">PDFs Uploaded</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-sm text-black font-medium">PDFs Uploaded</p>
+                  <p className="text-2xl font-bold text-black">
                     {contributions.uploadedPdfCount || 0}
                   </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-500">Quizzes Completed</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-sm text-black font-medium">Quizzes Completed</p>
+                  <p className="text-2xl font-bold text-black">
                     {contributions.completedQuizCount || 0}
                   </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-500">Accepted Answers</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-sm text-black font-medium">Accepted Answers</p>
+                  <p className="text-2xl font-bold text-black">
                     {contributions.acceptedAnswersCount || 0}
                   </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-500">Total Points</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-sm text-black font-medium">Total Points</p>
+                  <p className="text-2xl font-bold text-black">
                     {contributions.contributionPoints || 0}
                   </p>
                 </div>
@@ -229,31 +229,41 @@ export default function ProfilePage() {
           {myQuestions.length > 0 && (
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">My Questions</h2>
+                <h2 className="text-2xl font-bold text-black">My Questions</h2>
                 <Button
                   variant="outline"
                   size="sm"
+                  className="bg-white hover:bg-gray-50 border border-gray-300 text-black"
                   onClick={() => router.push("/questions")}
                 >
                   View All
                 </Button>
               </div>
               <div className="space-y-2">
-                {myQuestions.map((q) => (
-                  <Card
-                    key={q.id}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => router.push(`/questions/${q.id}`)}
-                  >
-                    <CardContent className="p-4">
-                      <h3 className="font-semibold mb-1">{q.title}</h3>
-                      <p className="text-sm text-gray-500">
-                        {q.answerCount || 0} answers •{" "}
-                        {new Date(q.createdAt).toLocaleDateString()}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
+                {myQuestions.map((q) => {
+                  const questionId = q.id || q._id;
+                  if (!questionId || questionId === "undefined") return null;
+                  
+                  return (
+                    <Card
+                      key={questionId}
+                      className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => {
+                        if (questionId && questionId !== "undefined") {
+                          router.push(`/questions/${questionId}`);
+                        }
+                      }}
+                    >
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold mb-1 text-black">{q.title}</h3>
+                        <p className="text-sm text-black">
+                          {q.answerCount || 0} answers •{" "}
+                          {new Date(q.createdAt).toLocaleDateString()}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -269,8 +279,8 @@ function Stat({ icon, label, value }) {
       <div className="flex justify-center mb-4 bg-gray-50 w-16 h-16 rounded-full items-center mx-auto">
         {icon}
       </div>
-      <p className="text-4xl font-bold text-gray-900 mb-1">{value}</p>
-      <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+      <p className="text-4xl font-bold text-black mb-1">{value}</p>
+      <p className="text-sm font-semibold text-black uppercase tracking-wide">
         {label}
       </p>
     </div>

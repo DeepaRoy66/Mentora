@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Trophy, Lock, CheckCircle, Zap } from "lucide-react";
 import {
@@ -16,10 +16,14 @@ export default function BadgesPage() {
   const [contributions, setContributions] = useState(null);
   const [badges, setBadges] = useState({ earned: [], locked: [] });
   const [loading, setLoading] = useState(true);
+  const hasFetched = useRef(false);
 
   useEffect(() => {
-    if (session?.user?.email) {
+    if (session?.user?.email && !hasFetched.current) {
+      hasFetched.current = true;
       fetchData();
+    } else if (!session?.user?.email) {
+      setLoading(false);
     }
   }, [session]);
 
@@ -28,6 +32,7 @@ export default function BadgesPage() {
 
     setLoading(true);
     try {
+      // Fetch contributions and badges
       const [contribRes, badgesRes] = await Promise.all([
         fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/users/${session.user.email}/contributions`
@@ -68,7 +73,7 @@ export default function BadgesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-4 py-8 max-w-6xl pt-4">
         <h1 className="text-4xl font-bold text-gray-900 mb-8">
           Badges & Contributions
         </h1>
@@ -243,29 +248,44 @@ export default function BadgesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {badges.locked.map((badge) => {
-                // Calculate progress
+                // Calculate progress - match backend ruleType values
                 let progress = 0;
                 let current = 0;
-                const threshold = badge.threshold || 0;
+                const threshold = badge.threshold || 1; // Ensure threshold is at least 1 to avoid division by zero
 
-                if (badge.ruleType === "points") {
-                  current = totalPoints;
-                  progress = Math.min(100, (current / threshold) * 100);
-                } else if (badge.ruleType === "accepted_answer_count") {
-                  current = contributions?.acceptedAnswersCount || 0;
-                  progress = Math.min(100, (current / threshold) * 100);
-                } else if (badge.ruleType === "uploaded_pdf_count") {
-                  current = contributions?.uploadedPdfCount || 0;
-                  progress = Math.min(100, (current / threshold) * 100);
-                } else if (badge.ruleType === "ask_question_count") {
-                  current = contributions?.askQuestionCount || 0;
-                  progress = Math.min(100, (current / threshold) * 100);
-                } else if (badge.ruleType === "answer_question_count") {
-                  current = contributions?.answerQuestionCount || 0;
-                  progress = Math.min(100, (current / threshold) * 100);
-                } else if (badge.ruleType === "quiz_completion_count") {
-                  current = contributions?.completedQuizCount || 0;
-                  progress = Math.min(100, (current / threshold) * 100);
+                // Ensure contributions is loaded before calculating
+                if (!contributions) {
+                  current = 0;
+                  progress = 0;
+                } else {
+                  // Ensure we're working with numbers
+                  const contrib = contributions || {};
+                  
+                  if (badge.ruleType === "points") {
+                    current = Number(totalPoints) || 0;
+                    progress = threshold > 0 ? Math.min(100, Math.max(0, (current / threshold) * 100)) : 0;
+                  } else if (badge.ruleType === "accepted_answer_count") {
+                    current = Number(contrib.acceptedAnswersCount) || 0;
+                    progress = threshold > 0 ? Math.min(100, Math.max(0, (current / threshold) * 100)) : 0;
+                  } else if (badge.ruleType === "pdf_upload_count") {
+                    current = Number(contrib.uploadedPdfCount) || 0;
+                    progress = threshold > 0 ? Math.min(100, Math.max(0, (current / threshold) * 100)) : 0;
+                  } else if (badge.ruleType === "question_count") {
+      
+                    current = Number(contrib.askQuestionCount) || 0;
+                    progress = threshold > 0 ? Math.min(100, Math.max(0, (current / threshold) * 100)) : 0;
+                  } else if (badge.ruleType === "answer_count") {
+                    current = Number(contrib.answerQuestionCount) || 0;
+                    progress = threshold > 0 ? Math.min(100, Math.max(0, (current / threshold) * 100)) : 0;
+                  } else if (badge.ruleType === "quiz_completion_count") {
+                    const quizCount = contrib.completedQuizCount;
+                    current = Number(quizCount) || 0;
+                    progress = threshold > 0 ? Math.min(100, Math.max(0, (current / threshold) * 100)) : 0;
+                  }
+                }
+                
+                if (isNaN(progress) || !isFinite(progress)) {
+                  progress = 0;
                 }
 
                 return (
@@ -297,11 +317,14 @@ export default function BadgesPage() {
                             <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1 overflow-hidden">
                               <div
                                 className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full transition-all duration-500 ease-out"
-                                style={{ width: `${progress}%` }}
+                                style={{ 
+                                  width: `${Math.max(0, Math.min(100, progress))}%`,
+                                  minWidth: progress > 0 ? '2px' : '0px' // Ensure bar is visible even at small progress
+                                }}
                               ></div>
                             </div>
                             <p className="text-xs font-medium text-gray-600">
-                              {current} / {threshold} ({Math.round(progress)}%)
+                              {current} / {threshold} ({Math.round(Math.max(0, Math.min(100, progress)))}%)
                             </p>
                           </div>
                         </div>

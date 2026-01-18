@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
@@ -14,8 +13,10 @@ import {
   Send,
   User,
   Clock,
-  Eye,
   HelpCircle,
+  Edit,
+  Trash2,
+  Reply,
 } from "lucide-react";
 import {
   Card,
@@ -36,37 +37,45 @@ export default function QuestionDetailPage() {
   const [question, setQuestion] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [comments, setComments] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [commentReplies, setCommentReplies] = useState({}); 
+  const [loading, setLoading] = useState(false); 
   const [answerContent, setAnswerContent] = useState("");
   const [commentContent, setCommentContent] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [showAnswerEditor, setShowAnswerEditor] = useState(false);
   const [showCommentEditors, setShowCommentEditors] = useState({});
+  const [openReplyInput, setOpenReplyInput] = useState(null); 
+  const [replyContent, setReplyContent] = useState({});
+  const [replyToCommentId, setReplyToCommentId] = useState({}); 
+  const [editingQuestion, setEditingQuestion] = useState(false);
+  const [editQuestionTitle, setEditQuestionTitle] = useState("");
+  const [editQuestionDescription, setEditQuestionDescription] = useState("");
+  const [editQuestionTags, setEditQuestionTags] = useState("");
+  const [editingAnswer, setEditingAnswer] = useState(null); 
+  const [editAnswerContent, setEditAnswerContent] = useState("");
+  const [editingComment, setEditingComment] = useState(null); 
+  const [editCommentContent, setEditCommentContent] = useState("");
   const [votingInProgress, setVotingInProgress] = useState({
     question: false,
     answers: {},
     comments: {},
   });
-
-  // Use refs for synchronous tracking to prevent rapid clicks
   const votingRefs = useRef({
     question: false,
     answers: {},
     comments: {},
   });
-
-  // Toast notifications
   const { toast, showToast } = useToast();
-
+  const hasFetched = useRef(false);
   useEffect(() => {
-    if (questionId && questionId !== "undefined") {
+    if (questionId && questionId !== "undefined" && !hasFetched.current) {
+      hasFetched.current = true;
       fetchQuestion();
-    } else {
+    } else if (!questionId || questionId === "undefined") {
       setLoading(false);
       console.error("Question ID is missing");
     }
-  }, [questionId, session]);
-
+  }, [questionId]);
   const fetchQuestion = async () => {
     if (!questionId || questionId === "undefined") {
       setLoading(false);
@@ -78,8 +87,6 @@ export default function QuestionDetailPage() {
       const headers = {
         "Content-Type": "application/json",
       };
-
-      // Add authorization header if user is logged in
       if (session?.accessToken) {
         headers.Authorization = `Bearer ${session.accessToken}`;
       }
@@ -92,31 +99,73 @@ export default function QuestionDetailPage() {
       if (!res.ok) {
         throw new Error(`Failed to fetch question: ${res.status}`);
       }
-
       const data = await res.json();
       setQuestion(data.question);
       setAnswers(data.answers || []);
-
-      // Fetch comments for question and answers with auth header
+      const validAnswers = (data.answers || []).filter(
+        (a) => a.id || a._id
+      );
       const commentPromises = [
         fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/comments?parentType=question&parentId=${questionId}`,
           { headers }
         ).then((r) => r.json()),
-        ...(data.answers || []).map((a) =>
-          fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/comments?parentType=answer&parentId=${a.id}`,
+        ...validAnswers.map((a) => {
+          const answerId = a.id || a._id;
+          if (!answerId || answerId === "undefined") {
+            return Promise.resolve([]);
+          }
+          return fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/comments?parentType=answer&parentId=${answerId}`,
             { headers }
-          ).then((r) => r.json())
-        ),
+          ).then((r) => r.json());
+        }),
       ];
       const commentResults = await Promise.all(commentPromises);
       const commentMap = {};
       commentMap[questionId] = commentResults[0];
-      data.answers?.forEach((a, idx) => {
-        commentMap[a.id] = commentResults[idx + 1];
+      validAnswers.forEach((a, idx) => {
+        const answerId = a.id || a._id;
+        if (answerId && answerId !== "undefined") {
+          commentMap[answerId] = commentResults[idx + 1];
+        }
       });
-      setComments(commentMap);
+  
+      const repliesMap = {};
+      const topLevelComments = {};
+      const storageKey = `commentReplies_${questionId}`;
+      let storedReplies = {};
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          storedReplies = JSON.parse(stored);
+        }
+      } catch (e) {
+        console.error("Error reading localStorage:", e);
+      }
+      
+      Object.keys(commentMap).forEach((parentId) => {
+        const allComments = commentMap[parentId] || [];
+        const topLevel = [];
+        
+        allComments.forEach((comment) => {
+          const commentId = comment.id || comment._id;
+          if (storedReplies[commentId]) {
+            const parentCommentId = storedReplies[commentId];
+            if (!repliesMap[parentCommentId]) {
+              repliesMap[parentCommentId] = [];
+            }
+            repliesMap[parentCommentId].push(comment);
+          } else {
+            topLevel.push(comment);
+          }
+        });
+        
+        topLevelComments[parentId] = topLevel;
+      });
+      
+      setComments(topLevelComments);
+      setCommentReplies(repliesMap);
     } catch (error) {
       console.error("Error fetching question:", error);
     } finally {
@@ -125,37 +174,27 @@ export default function QuestionDetailPage() {
   };
 
   const handleVote = async (voteType) => {
-    // IMMEDIATE ref check - must be first to prevent rapid clicks
     if (votingRefs.current.question) {
       console.log("Vote already in progress - ignoring duplicate click");
       return;
     }
-
-    // Set ref IMMEDIATELY before any other checks
     votingRefs.current.question = true;
 
     if (!session) {
-      votingRefs.current.question = false; // Clear ref on early return
+      votingRefs.current.question = false; 
       router.push("/api/auth/signin");
       return;
     }
-
-    // Early return if question is not loaded
-    if (!question || !question.id) {
-      votingRefs.current.question = false; // Clear ref on early return
+    if (!question) {
+      votingRefs.current.question = false; 
       return;
     }
-
-    const idToUse = question.id;
-
+    const idToUse = question.id || question._id;
     if (!idToUse || idToUse === "undefined") {
-      votingRefs.current.question = false; // Clear ref on early return
+      votingRefs.current.question = false; 
       return;
     }
-
     setVotingInProgress((prev) => ({ ...prev, question: true }));
-
-    // Optimistic update
     const previousVote = question.userVote;
     const previousUpvotes = question.upvotes || 0;
     const previousDownvotes = question.downvotes || 0;
@@ -166,33 +205,25 @@ export default function QuestionDetailPage() {
 
     if (voteType === "upvote") {
       if (previousVote === "upvote") {
-        // Toggle off
         newUpvotes = previousUpvotes - 1;
         newUserVote = null;
       } else if (previousVote === "downvote") {
-        // Switch from downvote to upvote
         newUpvotes = previousUpvotes + 1;
         newDownvotes = previousDownvotes - 1;
       } else {
-        // New upvote
         newUpvotes = previousUpvotes + 1;
       }
     } else if (voteType === "downvote") {
       if (previousVote === "downvote") {
-        // Toggle off
         newDownvotes = previousDownvotes - 1;
         newUserVote = null;
       } else if (previousVote === "upvote") {
-        // Switch from upvote to downvote
         newUpvotes = previousUpvotes - 1;
         newDownvotes = previousDownvotes + 1;
       } else {
-        // New downvote
         newDownvotes = previousDownvotes + 1;
       }
     }
-
-    // Update state immediately
     setQuestion({
       ...question,
       upvotes: newUpvotes,
@@ -201,21 +232,30 @@ export default function QuestionDetailPage() {
     });
 
     try {
-      await authFetch(`/api/questions/${idToUse}/vote`, {
+      const response = await authFetch(`/api/questions/${idToUse}/vote`, {
         method: "POST",
         body: JSON.stringify({ voteType }),
       });
-      // Refetch question to get updated vote count and user vote status
-      await fetchQuestion();
-      showToast(
-        voteType === "upvote"
-          ? "Upvoted successfully!"
-          : "Downvoted successfully!",
-        "success"
-      );
+      
+      if (response.ok) {
+        const updatedQuestion = await response.json();
+        setQuestion({
+          ...question,
+          upvotes: updatedQuestion.upvotes,
+          downvotes: updatedQuestion.downvotes,
+          userVote: updatedQuestion.userVote,
+        });
+        showToast(
+          voteType === "upvote"
+            ? "Upvoted successfully!"
+            : "Downvoted successfully!",
+          "success"
+        );
+      } else {
+        throw new Error("Failed to vote");
+      }
     } catch (error) {
       console.error("Error voting:", error);
-      // Revert on error
       setQuestion({
         ...question,
         upvotes: previousUpvotes,
@@ -224,7 +264,6 @@ export default function QuestionDetailPage() {
       });
       showToast("Failed to vote. Please try again.", "error");
     } finally {
-      // Reset both ref and state
       votingRefs.current.question = false;
       setVotingInProgress((prev) => ({ ...prev, question: false }));
     }
@@ -236,18 +275,26 @@ export default function QuestionDetailPage() {
 
     setSubmitting(true);
     try {
-      await authFetch("/api/answers", {
+      const response = await authFetch("/api/answers", {
         method: "POST",
         body: JSON.stringify({
           questionId,
           content: answerContent,
         }),
       });
-      setAnswerContent("");
-      setShowAnswerEditor(false);
-      fetchQuestion();
+      
+      if (response.ok) {
+        const newAnswer = await response.json();
+        setAnswers([...answers, newAnswer]);
+        setAnswerContent("");
+        setShowAnswerEditor(false);
+        showToast("Answer posted successfully!", "success");
+      } else {
+        throw new Error("Failed to post answer");
+      }
     } catch (error) {
       console.error("Error submitting answer:", error);
+      showToast("Failed to post answer. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -258,15 +305,13 @@ export default function QuestionDetailPage() {
 
     if (!answerId || answerId === "undefined" || answerId === null) {
       console.error("Invalid answer ID:", answerId);
-      alert("Invalid answer ID. Please try again.");
+      showToast("Invalid answer ID. Please try again.", "error");
       return;
     }
-
     try {
       const response = await authFetch(`/api/answers/${answerId}/accept`, {
         method: "POST",
       });
-
       if (!response.ok) {
         const errorData = await response
           .json()
@@ -275,8 +320,14 @@ export default function QuestionDetailPage() {
           errorData.detail || `HTTP error! status: ${response.status}`
         );
       }
-
-      await fetchQuestion();
+      const updatedAnswers = answers.map((a) => {
+        const aId = a.id || a._id;
+        if (aId === answerId) {
+          return { ...a, accepted: true };
+        }
+        return a;
+      });
+      setAnswers(updatedAnswers);
       showToast("Answer accepted!", "success");
     } catch (error) {
       console.error("Error accepting answer:", error);
@@ -286,9 +337,7 @@ export default function QuestionDetailPage() {
       );
     }
   };
-
   const handleAnswerUseful = async (answerId, voteType) => {
-    // IMMEDIATE ref check - must be first to prevent rapid clicks
     if (votingRefs.current.answers[answerId]) {
       console.log(
         "Answer vote already in progress - ignoring duplicate click:",
@@ -305,12 +354,10 @@ export default function QuestionDetailPage() {
     if (!answerId || answerId === "undefined") {
       return;
     }
-
-    // Find the answer and update optimistically
-    const answerIndex = answers.findIndex((a) => a.id === answerId);
+    const answerIndex = answers.findIndex(
+      (a) => (a.id || a._id) === answerId
+    );
     if (answerIndex === -1) return;
-
-    // Set ref IMMEDIATELY before any other operations
     votingRefs.current.answers[answerId] = true;
     setVotingInProgress((prev) => ({
       ...prev,
@@ -347,8 +394,6 @@ export default function QuestionDetailPage() {
         newNotUseful = previousNotUseful + 1;
       }
     }
-
-    // Update state immediately
     const updatedAnswers = [...answers];
     updatedAnswers[answerIndex] = {
       ...answer,
@@ -359,15 +404,27 @@ export default function QuestionDetailPage() {
     setAnswers(updatedAnswers);
 
     try {
-      await authFetch(`/api/answers/${answerId}/useful`, {
+      const response = await authFetch(`/api/answers/${answerId}/useful`, {
         method: "POST",
         body: JSON.stringify({ voteType }),
-      });
-      await fetchQuestion();
-      showToast(
-        voteType === "useful" ? "Marked as useful!" : "Marked as not useful!",
-        "success"
-      );
+      });  
+      if (response.ok) {
+        const updatedAnswer = await response.json();
+        const updatedAnswers = [...answers];
+        updatedAnswers[answerIndex] = {
+          ...answer,
+          usefulCount: updatedAnswer.usefulCount,
+          notUsefulCount: updatedAnswer.notUsefulCount,
+          userVote: updatedAnswer.userVote,
+        };
+        setAnswers(updatedAnswers);
+        showToast(
+          voteType === "useful" ? "Marked as useful!" : "Marked as not useful!",
+          "success"
+        );
+      } else {
+        throw new Error("Failed to vote");
+      }
     } catch (error) {
       console.error("Error voting on answer:", error);
       // Revert on error
@@ -381,7 +438,6 @@ export default function QuestionDetailPage() {
       setAnswers(revertedAnswers);
       showToast("Failed to vote. Please try again.", "error");
     } finally {
-      // Reset both ref and state
       votingRefs.current.answers[answerId] = false;
       setVotingInProgress((prev) => ({
         ...prev,
@@ -395,8 +451,6 @@ export default function QuestionDetailPage() {
       e.preventDefault();
       e.stopPropagation();
     }
-
-    // IMMEDIATE ref check - must be first to prevent rapid clicks
     if (votingRefs.current.comments[commentId]) {
       console.log(
         "Comment like already in progress - ignoring duplicate click:",
@@ -404,19 +458,17 @@ export default function QuestionDetailPage() {
       );
       return;
     }
-
-    // Set ref IMMEDIATELY before any other checks
     votingRefs.current.comments[commentId] = true;
 
     if (!session) {
-      votingRefs.current.comments[commentId] = false; // Clear ref on early return
+      votingRefs.current.comments[commentId] = false; 
       router.push("/api/auth/signin");
       return;
     }
 
     if (!commentId || commentId === "undefined" || commentId === null) {
       console.error("Invalid comment ID:", commentId);
-      votingRefs.current.comments[commentId] = false; // Clear ref on early return
+      votingRefs.current.comments[commentId] = false; 
       return;
     }
 
@@ -425,12 +477,7 @@ export default function QuestionDetailPage() {
       comments: { ...prev.comments, [commentId]: true },
     }));
 
-    console.log("Liking comment:", commentId);
-
-    // Store previous state for revert
     const previousComments = JSON.parse(JSON.stringify(comments));
-
-    // Optimistic update for comments
     const updatedComments = { ...comments };
     Object.keys(updatedComments).forEach((key) => {
       updatedComments[key] = updatedComments[key].map((comment) => {
@@ -471,12 +518,29 @@ export default function QuestionDetailPage() {
         method: "POST",
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        const updatedComment = await response.json();
+        // Update state with API response
+        const updatedComments = { ...comments };
+        Object.keys(updatedComments).forEach((key) => {
+          updatedComments[key] = updatedComments[key].map((comment) => {
+            const commentIdToCheck = comment.id || comment._id;
+            if (commentIdToCheck === commentId) {
+              return {
+                ...comment,
+                likes: updatedComment.likes,
+                dislikes: updatedComment.dislikes,
+                userVote: updatedComment.userVote,
+              };
+            }
+            return comment;
+          });
+        });
+        setComments(updatedComments);
+        showToast("Liked comment!", "success");
+      } else {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      await fetchQuestion();
-      showToast("Liked comment!", "success");
     } catch (error) {
       console.error("Error liking comment:", error);
       // Revert on error
@@ -506,19 +570,17 @@ export default function QuestionDetailPage() {
       );
       return;
     }
-
-    // Set ref IMMEDIATELY before any other checks
     votingRefs.current.comments[commentId] = true;
 
     if (!session) {
-      votingRefs.current.comments[commentId] = false; // Clear ref on early return
+      votingRefs.current.comments[commentId] = false; 
       router.push("/api/auth/signin");
       return;
     }
 
     if (!commentId || commentId === "undefined" || commentId === null) {
       console.error("Invalid comment ID:", commentId);
-      votingRefs.current.comments[commentId] = false; // Clear ref on early return
+      votingRefs.current.comments[commentId] = false;
       return;
     }
 
@@ -526,13 +588,7 @@ export default function QuestionDetailPage() {
       ...prev,
       comments: { ...prev.comments, [commentId]: true },
     }));
-
-    console.log("Disliking comment:", commentId);
-
-    // Store previous state for revert
     const previousComments = JSON.parse(JSON.stringify(comments));
-
-    // Optimistic update for comments
     const updatedComments = { ...comments };
     Object.keys(updatedComments).forEach((key) => {
       updatedComments[key] = updatedComments[key].map((comment) => {
@@ -573,19 +629,33 @@ export default function QuestionDetailPage() {
         method: "POST",
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        const updatedComment = await response.json();
+        const updatedComments = { ...comments };
+        Object.keys(updatedComments).forEach((key) => {
+          updatedComments[key] = updatedComments[key].map((comment) => {
+            const commentIdToCheck = comment.id || comment._id;
+            if (commentIdToCheck === commentId) {
+              return {
+                ...comment,
+                likes: updatedComment.likes,
+                dislikes: updatedComment.dislikes,
+                userVote: updatedComment.userVote,
+              };
+            }
+            return comment;
+          });
+        });
+        setComments(updatedComments);
+        showToast("Disliked comment!", "success");
+      } else {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      await fetchQuestion();
-      showToast("Disliked comment!", "success");
     } catch (error) {
       console.error("Error disliking comment:", error);
-      // Revert on error
       setComments(previousComments);
       showToast("Failed to dislike comment. Please try again.", "error");
     } finally {
-      // Reset both ref and state
       votingRefs.current.comments[commentId] = false;
       setVotingInProgress((prev) => ({
         ...prev,
@@ -598,8 +668,9 @@ export default function QuestionDetailPage() {
     const content = commentContent[parentId] || "";
     if (!content.trim() || !session) return;
 
+    setSubmitting(true);
     try {
-      await authFetch("/api/comments", {
+      const response = await authFetch("/api/comments", {
         method: "POST",
         body: JSON.stringify({
           parentType,
@@ -607,11 +678,27 @@ export default function QuestionDetailPage() {
           content,
         }),
       });
-      setCommentContent({ ...commentContent, [parentId]: "" });
-      setShowCommentEditors({ ...showCommentEditors, [parentId]: false });
-      fetchQuestion();
+      
+      if (response.ok) {
+        const newComment = await response.json();
+        const updatedComments = { ...comments };
+        if (!updatedComments[parentId]) {
+          updatedComments[parentId] = [];
+        }
+        updatedComments[parentId] = [...updatedComments[parentId], newComment];
+        setComments(updatedComments);
+        
+        setCommentContent({ ...commentContent, [parentId]: "" });
+        setShowCommentEditors({ ...showCommentEditors, [parentId]: false });
+        showToast("Comment posted successfully!", "success");
+      } else {
+        throw new Error("Failed to post comment");
+      }
     } catch (error) {
       console.error("Error submitting comment:", error);
+      showToast("Failed to post comment. Please try again.", "error");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -632,6 +719,238 @@ export default function QuestionDetailPage() {
       }
     });
   };
+
+  const handleEditQuestion = () => {
+    if (!question) return;
+    setEditQuestionTitle(question.title);
+    setEditQuestionDescription(question.description);
+    setEditQuestionTags(question.tags || "");
+    setEditingQuestion(true);
+  };
+
+  const handleSaveQuestion = async () => {
+    if (!question) return;
+    const qId = question.id || question._id;
+    if (!qId) return;
+
+    setSubmitting(true);
+    try {
+      const response = await authFetch(`/api/questions/${qId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          title: editQuestionTitle,
+          description: editQuestionDescription,
+          tags: editQuestionTags,
+        }),
+      });
+      const updatedQuestion = await response.json();
+      setQuestion({
+        ...question,
+        title: updatedQuestion.title,
+        description: updatedQuestion.description,
+        tags: updatedQuestion.tags,
+      });
+      setEditingQuestion(false);
+      showToast("Question updated successfully!", "success");
+    } catch (error) {
+      console.error("Error updating question:", error);
+      showToast("Failed to update question", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancelEditQuestion = () => {
+    setEditingQuestion(false);
+    setEditQuestionTitle("");
+    setEditQuestionDescription("");
+    setEditQuestionTags("");
+  };
+
+  const handleEditAnswer = (answer) => {
+    const answerId = answer.id || answer._id;
+    setEditAnswerContent(answer.content);
+    setEditingAnswer(answerId);
+  };
+
+  const handleSaveAnswer = async () => {
+    if (!editingAnswer) return;
+
+    setSubmitting(true);
+    try {
+      await authFetch(`/api/answers/${editingAnswer}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          content: editAnswerContent,
+        }),
+      });
+      const updatedAnswer = await response.json();
+      const updatedAnswers = answers.map((a) => {
+        const aId = a.id || a._id;
+        if (aId === editingAnswer) {
+          return { ...a, content: updatedAnswer.content };
+        }
+        return a;
+      });
+      setAnswers(updatedAnswers);
+      setEditingAnswer(null);
+      setEditAnswerContent("");
+      showToast("Answer updated successfully!", "success");
+    } catch (error) {
+      console.error("Error updating answer:", error);
+      showToast("Failed to update answer", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancelEditAnswer = () => {
+    setEditingAnswer(null);
+    setEditAnswerContent("");
+  };
+
+  const handleEditComment = (comment) => {
+    const commentId = comment.id || comment._id;
+    setEditCommentContent(comment.content);
+    setEditingComment(commentId);
+  };
+
+  const handleSaveComment = async () => {
+    if (!editingComment) return;
+
+    setSubmitting(true);
+    try {
+      const response = await authFetch(`/api/comments/${editingComment}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          content: editCommentContent,
+        }),
+      });
+      if (response.ok) {
+        const updatedComment = await response.json();
+        const updatedComments = { ...comments };
+        Object.keys(updatedComments).forEach((key) => {
+          updatedComments[key] = updatedComments[key].map((c) => {
+            const commentId = c.id || c._id;
+            if (commentId === editingComment) {
+              return { ...c, content: updatedComment.content };
+            }
+            return c;
+          });
+        });
+        setComments(updatedComments);
+        setEditingComment(null);
+        setEditCommentContent("");
+        showToast("Comment updated successfully!", "success");
+      } else {
+        throw new Error("Failed to update comment");
+      }
+    } catch (error) {
+      console.error("Error updating comment:", error);
+      showToast("Failed to update comment", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancelEditComment = () => {
+    setEditingComment(null);
+    setEditCommentContent("");
+  };
+
+  const handleReplyToComment = (comment) => {
+    const commentId = comment.id || comment._id;
+    const replyKey = `comment-${commentId}`;
+    setOpenReplyInput(replyKey);
+    setReplyContent({ ...replyContent, [replyKey]: "" });
+    setReplyToCommentId({ ...replyToCommentId, [replyKey]: commentId });
+  };
+
+  const handleReplyToAnswer = (answer) => {
+    const answerId = answer.id || answer._id;
+    const replyKey = `answer-${answerId}`;
+    setOpenReplyInput(replyKey);
+    setReplyContent({ ...replyContent, [replyKey]: "" });
+    setReplyToCommentId({ ...replyToCommentId, [replyKey]: null }); 
+  };
+
+  const handleSubmitReply = async (parentType, parentId, replyKey) => {
+    const content = replyContent[replyKey] || "";
+    const textContent = content.replace(/<[^>]*>/g, "").trim();
+    if (!textContent || !session) {
+      console.log("Cannot submit reply - content or session missing:", { hasContent: !!textContent, hasSession: !!session });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await authFetch("/api/comments", {
+        method: "POST",
+        body: JSON.stringify({
+          parentType,
+          parentId,
+          content,
+        }),
+      });
+      
+      if (response.ok) {
+        const newComment = await response.json();
+        const repliedToCommentIdValue = replyToCommentId[replyKey];
+        if (repliedToCommentIdValue) {
+          const updatedReplies = { ...commentReplies };
+          if (!updatedReplies[repliedToCommentIdValue]) {
+            updatedReplies[repliedToCommentIdValue] = [];
+          }
+          updatedReplies[repliedToCommentIdValue] = [...updatedReplies[repliedToCommentIdValue], newComment];
+          setCommentReplies(updatedReplies);
+          const storageKey = `commentReplies_${questionId}`;
+          try {
+            let storedReplies = {};
+            const stored = localStorage.getItem(storageKey);
+            if (stored) {
+              storedReplies = JSON.parse(stored);
+            }
+            storedReplies[newComment.id || newComment._id] = repliedToCommentIdValue;
+            localStorage.setItem(storageKey, JSON.stringify(storedReplies));
+          } catch (e) {
+            console.error("Error saving to localStorage:", e);
+          }
+        } else {
+          const updatedComments = { ...comments };
+          if (!updatedComments[parentId]) {
+            updatedComments[parentId] = [];
+          }
+          updatedComments[parentId] = [...updatedComments[parentId], newComment];
+          setComments(updatedComments);
+        }
+        
+        setReplyContent({ ...replyContent, [replyKey]: "" });
+        setOpenReplyInput(null); 
+        const updatedReplyToCommentId = { ...replyToCommentId };
+        delete updatedReplyToCommentId[replyKey];
+        setReplyToCommentId(updatedReplyToCommentId);
+        showToast("Reply posted successfully!", "success");
+      } else {
+        const errorText = await response.text().catch(() => "Unknown error");
+        console.error("API error response:", response.status, errorText);
+        throw new Error(`Failed to post reply: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Error submitting reply:", error);
+      showToast("Failed to post reply. Please try again.", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancelReply = (replyKey) => {
+    setOpenReplyInput(null);
+    setReplyContent({ ...replyContent, [replyKey]: "" });
+    const updated = { ...replyToCommentId };
+    delete updated[replyKey];
+    setReplyToCommentId(updated);
+  };
+
 
   if (loading) {
     return <div className="container mx-auto p-8 text-center">Loading...</div>;
@@ -664,15 +983,27 @@ export default function QuestionDetailPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
       <Toast toast={toast} onClose={() => showToast("", "success")} />
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-5xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-5xl pt-4">
         {/* Back Button */}
         <button
-          onClick={() => router.back()}
-          className="mb-6 flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors duration-200"
-        >
-          <ArrowDown className="w-4 h-4 rotate-90" />
-          Back to Questions
-        </button>
+  onClick={() => router.back()}
+  className="
+    mb-6
+    inline-flex items-center gap-2
+    rounded-full border border-gray-200
+    bg-white/80 backdrop-blur
+    px-4 py-2
+    text-sm font-semibold text-gray-700
+    shadow-sm
+    transition-all duration-200
+    hover:bg-gray-100 hover:text-gray-900
+    hover:shadow-md
+    active:scale-95
+  "
+>
+  <ArrowDown className="w-4 h-4 rotate-90 transition-transform group-hover:-translate-x-0.5" />
+  <span>Back to Questions</span>
+</button>
 
         {/* Question Card */}
         <Card className="mb-8 bg-white border-2 border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden">
@@ -680,36 +1011,173 @@ export default function QuestionDetailPage() {
             <div className="flex flex-col gap-6">
               {/* Question Content */}
               <div className="w-full">
-                <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 mb-4 sm:mb-6 leading-tight">
-                  {question.title}
-                </CardTitle>
+                {editingQuestion ? (
+                  <div className="space-y-0 mb-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Title
+                      </label>
+                      <input
+                        type="text"
+                        value={editQuestionTitle}
+                        onChange={(e) => setEditQuestionTitle(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                        placeholder="Enter question title"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Description
+                      </label>
+                      <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 transition-all duration-200">
+                        <Editor
+                          apiKey={
+                            process.env.NEXT_PUBLIC_TINYMCE_API_KEY ||
+                            "no-api-key"
+                          }
+                          value={editQuestionDescription}
+                          onEditorChange={setEditQuestionDescription}
+                          init={{
+                            height: 300,
+                            min_height: 200,
+                            menubar: false,
+                            statusbar: false,
+                            plugins: [
+                              "advlist",
+                              "autolink",
+                              "lists",
+                              "link",
+                              "image",
+                              "charmap",
+                              "preview",
+                              "anchor",
+                              "searchreplace",
+                              "visualblocks",
+                              "code",
+                              "fullscreen",
+                              "insertdatetime",
+                              "media",
+                              "table",
+                              "code",
+                              "help",
+                              "wordcount",
+                            ],
+                            toolbar:
+                              "undo redo | blocks | " +
+                              "bold italic forecolor | alignleft aligncenter " +
+                              "alignright alignjustify | bullist numlist outdent indent | " +
+                              "removeformat | help | code",
+                            images_upload_handler: handleImageUpload,
+                            content_style:
+                              "body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; margin: 16px; }",
+                            skin: "oxide",
+                            content_css: "default",
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Tags (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={editQuestionTags}
+                        onChange={(e) => setEditQuestionTags(e.target.value)}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                        placeholder="e.g., javascript, react, nextjs"
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={handleSaveQuestion}
+                        disabled={submitting || !editQuestionTitle.trim()}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50"
+                      >
+                        {submitting ? "Saving..." : "Save Changes"}
+                      </Button>
+                      <Button
+                        onClick={handleCancelEditQuestion}
+                        disabled={submitting}
+                        variant="outline"
+                        className="px-6 py-2 rounded-lg font-semibold"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-4 mb-4 sm:mb-6">
+                      <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 leading-tight flex-1">
+                        {question.title}
+                      </CardTitle>
+                      {isQuestionOwner && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleEditQuestion}
+                            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            title="Edit question"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (
+                                confirm(
+                                  "Are you sure you want to delete this question?"
+                                )
+                              ) {
+                                try {
+                                  const qId = question.id || question._id;
+                                  await authFetch(`/api/questions/${qId}`, {
+                                    method: "DELETE",
+                                  });
+                                  showToast("Question deleted successfully", "success");
+                                  router.push("/questions");
+                                } catch (error) {
+                                  console.error("Error deleting question:", error);
+                                  showToast("Failed to delete question", "error");
+                                }
+                              }
+                            }}
+                            className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            title="Delete question"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
-                <div
-                  className="prose prose-slate max-w-none mb-6 sm:mb-8 text-gray-700 leading-relaxed text-base sm:text-lg"
-                  dangerouslySetInnerHTML={{ __html: question.description }}
-                />
+                    <div
+                      className="prose prose-slate max-w-none mb-6 sm:mb-8 text-gray-700 leading-relaxed text-base sm:text-lg"
+                      dangerouslySetInnerHTML={{ __html: question.description }}
+                    />
+                  </>
+                )}
 
-                {/* Facebook-style Like / Dislike */}
-                <div className="flex items-center gap-6 mb-6">
-                  {/* Like */}
+                {/* Like / Dislike */}
+                <div className="flex items-center gap-3 mt-3 mb-4">
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (question?.id && !votingRefs.current.question) {
+                      const qId = question?.id || question?._id;
+                      if (qId && !votingRefs.current.question) {
                         handleVote("upvote");
                       }
                     }}
                     disabled={
                       !question ||
-                      !question.id ||
+                      !(question.id || question._id) ||
                       votingInProgress.question ||
                       votingRefs.current.question
                     }
-                    className={`flex items-center gap-2 text-sm font-semibold transition-all ${
+                    className={`flex items-center gap-1.5 text-xs font-medium transition-all px-2 py-1 rounded-md ${
                       question?.userVote === "upvote"
-                        ? "text-blue-600"
-                        : "text-gray-500 hover:text-blue-600"
+                        ? "text-blue-600 bg-blue-50"
+                        : "text-gray-500 hover:text-blue-600 hover:bg-gray-50"
                     } ${
                       votingInProgress.question
                         ? "opacity-50 cursor-not-allowed"
@@ -717,38 +1185,32 @@ export default function QuestionDetailPage() {
                     }`}
                   >
                     <ArrowUp
-                      className={`w-5 h-5 ${
+                      className={`w-3.5 h-3.5 ${
                         question?.userVote === "upvote" ? "fill-blue-600" : ""
                       }`}
                     />
-                    Upvote
+                    <span>{(question?.upvotes || 0) - (question?.downvotes || 0)}</span>
                   </button>
 
-                  {/* Vote Count */}
-                  <span className="text-sm font-bold text-gray-700">
-                    {(question?.upvotes || 0) - (question?.downvotes || 0)}{" "}
-                    votes
-                  </span>
-
-                  {/* Dislike */}
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (question?.id && !votingRefs.current.question) {
+                      const qId = question?.id || question?._id;
+                      if (qId && !votingRefs.current.question) {
                         handleVote("downvote");
                       }
                     }}
                     disabled={
                       !question ||
-                      !question.id ||
+                      !(question.id || question._id) ||
                       votingInProgress.question ||
                       votingRefs.current.question
                     }
-                    className={`flex items-center gap-2 text-sm font-semibold transition-all ${
+                    className={`flex items-center gap-1.5 text-xs font-medium transition-all px-2 py-1 rounded-md ${
                       question?.userVote === "downvote"
-                        ? "text-red-600"
-                        : "text-gray-500 hover:text-red-600"
+                        ? "text-red-600 bg-red-50"
+                        : "text-gray-500 hover:text-red-600 hover:bg-gray-50"
                     } ${
                       votingInProgress.question
                         ? "opacity-50 cursor-not-allowed"
@@ -756,11 +1218,10 @@ export default function QuestionDetailPage() {
                     }`}
                   >
                     <ArrowDown
-                      className={`w-5 h-5 ${
+                      className={`w-3.5 h-3.5 ${
                         question?.userVote === "downvote" ? "fill-red-600" : ""
                       }`}
                     />
-                    Downvote
                   </button>
                 </div>
 
@@ -824,107 +1285,399 @@ export default function QuestionDetailPage() {
                 (comments[questionId] || []).map((comment, index) => (
                   <div
                     key={comment.id || `comment-${questionId}-${index}`}
-                    className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-4 border-blue-500 pl-5 pr-4 py-4 rounded-r-xl shadow-sm hover:shadow-md transition-all duration-200"
+                    className="bg-white border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-50 transition-all duration-200"
                   >
-                    <div
-                      className="text-gray-800 leading-relaxed mb-4 text-sm sm:text-base"
-                      dangerouslySetInnerHTML={{ __html: comment.content }}
-                    />
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 text-xs text-gray-600">
-                        <div className="flex items-center gap-1.5">
-                          <User className="w-3.5 h-3.5 text-gray-400" />
-                          <span className="font-semibold text-gray-900">
+                    <div className="flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-white text-xs font-bold">
+                          {comment.authorId?.charAt(0)?.toUpperCase() || "U"}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-xs font-semibold text-gray-900">
                             {comment.authorId}
                           </span>
-                        </div>
-                        <span>•</span>
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-gray-400" />
-                          <span>
+                          {comment.parentType === "answer" && (
+                            (() => {
+                              const parentAnswer = answers.find(
+                                (a) => (a.id || a._id) === comment.parentId
+                              );
+                              return parentAnswer ? (
+                                <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full font-medium">
+                                  Replying to @{parentAnswer.authorId}
+                                </span>
+                              ) : null;
+                            })()
+                          )}
+                          {comment.parentType === "question" && (
+                            <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full font-medium">
+                              Replying to @{question?.authorId}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-500">
                             {new Date(comment.createdAt).toLocaleDateString()}
                           </span>
                         </div>
-                      </div>
-                      {session && (
-                        <div
-                          className="flex items-center gap-2"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const commentId = comment.id || comment._id;
-                              if (
-                                commentId &&
-                                !votingRefs.current.comments[commentId]
-                              ) {
-                                handleCommentLike(commentId, e);
+                        {editingComment === (comment.id || comment._id) ? (
+                          <div className="space-y-3 mb-2">
+                            <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 transition-all duration-200">
+                              <Editor
+                                apiKey={
+                                  process.env.NEXT_PUBLIC_TINYMCE_API_KEY ||
+                                  "no-api-key"
+                                }
+                                value={editCommentContent}
+                                onEditorChange={setEditCommentContent}
+                                init={{
+                                  height: 150,
+                                  menubar: false,
+                                  statusbar: false,
+                                  plugins: ["lists", "link"],
+                                  toolbar: "bold italic | bullist numlist | link",
+                                  images_upload_handler: handleImageUpload,
+                                  content_style:
+                                    "body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; margin: 12px; }",
+                                  skin: "oxide",
+                                  content_css: "default",
+                                }}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={handleSaveComment}
+                                disabled={submitting || !editCommentContent.trim()}
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                              >
+                                {submitting ? "Saving..." : "Save"}
+                              </Button>
+                              <Button
+                                onClick={handleCancelEditComment}
+                                disabled={submitting}
+                                variant="outline"
+                                size="sm"
+                                className="px-4 py-1.5 rounded-lg text-xs font-semibold"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div
+                              className="text-gray-800 leading-relaxed mb-2 text-sm"
+                              dangerouslySetInnerHTML={{ __html: comment.content }}
+                            />
+                            <div className="flex items-center justify-between mt-2">
+                              {session && (
+                                <div
+                                  className="flex items-center gap-3"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const commentId = comment.id || comment._id;
+                                if (
+                                  commentId &&
+                                  !votingRefs.current.comments[commentId]
+                                ) {
+                                  handleCommentLike(commentId, e);
+                                }
+                              }}
+                              disabled={
+                                votingInProgress.comments[
+                                  comment.id || comment._id
+                                ] ||
+                                votingRefs.current.comments[
+                                  comment.id || comment._id
+                                ]
                               }
-                            }}
-                            disabled={
-                              votingInProgress.comments[
-                                comment.id || comment._id
-                              ] ||
-                              votingRefs.current.comments[
-                                comment.id || comment._id
-                              ]
-                            }
-                            className={`h-9 px-3 rounded-lg text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 ${
-                              comment.userVote === "like"
-                                ? "bg-blue-500 text-white hover:bg-blue-600 shadow-md"
-                                : "bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 border-2 border-gray-300 hover:border-blue-400"
-                            } ${
-                              votingInProgress.comments[
-                                comment.id || comment._id
-                              ]
-                                ? "opacity-50 cursor-not-allowed"
-                                : "cursor-pointer hover:scale-105"
-                            }`}
-                            title="Like this comment"
-                          >
-                            <ThumbsUp className="w-3.5 h-3.5" />
-                            <span>{comment.likes || 0}</span>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const commentId = comment.id || comment._id;
-                              if (
-                                commentId &&
-                                !votingRefs.current.comments[commentId]
-                              ) {
-                                handleCommentDislike(commentId, e);
+                              className={`flex items-center gap-1.5 text-xs font-medium transition-all px-2 py-1 rounded-md ${
+                                comment.userVote === "like"
+                                  ? "text-blue-600 bg-blue-50"
+                                  : "text-gray-500 hover:text-blue-600 hover:bg-gray-50"
+                              } ${
+                                votingInProgress.comments[
+                                  comment.id || comment._id
+                                ]
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : "cursor-pointer"
+                              }`}
+                            >
+                              <ThumbsUp className="w-3 h-3" />
+                              <span>{comment.likes || 0}</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const commentId = comment.id || comment._id;
+                                if (
+                                  commentId &&
+                                  !votingRefs.current.comments[commentId]
+                                ) {
+                                  handleCommentDislike(commentId, e);
+                                }
+                              }}
+                              disabled={
+                                votingInProgress.comments[
+                                  comment.id || comment._id
+                                ] ||
+                                votingRefs.current.comments[
+                                  comment.id || comment._id
+                                ]
                               }
-                            }}
-                            disabled={
-                              votingInProgress.comments[
-                                comment.id || comment._id
-                              ] ||
-                              votingRefs.current.comments[
-                                comment.id || comment._id
-                              ]
-                            }
-                            className={`h-9 px-3 rounded-lg text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 ${
-                              comment.userVote === "dislike"
-                                ? "bg-red-500 text-white hover:bg-red-600 shadow-md"
-                                : "bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border-2 border-gray-300 hover:border-red-400"
-                            } ${
-                              votingInProgress.comments[
-                                comment.id || comment._id
-                              ]
-                                ? "opacity-50 cursor-not-allowed"
-                                : "cursor-pointer hover:scale-105"
-                            }`}
-                            title="Dislike this comment"
-                          >
-                            <ThumbsDown className="w-3.5 h-3.5" />
-                            <span>{comment.dislikes || 0}</span>
-                          </button>
+                              className={`flex items-center gap-1.5 text-xs font-medium transition-all px-2 py-1 rounded-md ${
+                                comment.userVote === "dislike"
+                                  ? "text-red-600 bg-red-50"
+                                  : "text-gray-500 hover:text-red-600 hover:bg-gray-50"
+                              } ${
+                                votingInProgress.comments[
+                                  comment.id || comment._id
+                                ]
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : "cursor-pointer"
+                              }`}
+                            >
+                              <ThumbsDown className="w-3 h-3" />
+                              <span>{comment.dislikes || 0}</span>
+                            </button>
+                          </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            {session && session.user.email !== comment.authorId && (
+                              <button
+                                onClick={() => handleReplyToComment(comment)}
+                                className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                title="Reply to comment"
+                              >
+                                <Reply className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {session?.user?.email === comment.authorId && !editingComment && (
+                              <>
+                                <button
+                                  onClick={() => handleEditComment(comment)}
+                                  className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                  title="Edit comment"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (confirm("Are you sure you want to delete this comment?")) {
+                                      try {
+                                        const commentId = comment.id || comment._id;
+                                        await authFetch(`/api/comments/${commentId}`, {
+                                          method: "DELETE",
+                                        });
+                                        // Remove comment from state directly
+                                        const updatedComments = { ...comments };
+                                        Object.keys(updatedComments).forEach((key) => {
+                                          updatedComments[key] = updatedComments[key].filter(
+                                            (c) => (c.id || c._id) !== commentId
+                                          );
+                                        });
+                                        setComments(updatedComments);
+                                        
+                                        // Remove from commentReplies if it exists there
+                                        const updatedReplies = { ...commentReplies };
+                                        Object.keys(updatedReplies).forEach((parentId) => {
+                                          updatedReplies[parentId] = updatedReplies[parentId].filter(
+                                            (c) => (c.id || c._id) !== commentId
+                                          );
+                                        });
+                                        setCommentReplies(updatedReplies);
+                                        
+                                        // Remove from localStorage
+                                        const storageKey = `commentReplies_${questionId}`;
+                                        try {
+                                          const stored = localStorage.getItem(storageKey);
+                                          if (stored) {
+                                            const storedReplies = JSON.parse(stored);
+                                            delete storedReplies[commentId];
+                                            localStorage.setItem(storageKey, JSON.stringify(storedReplies));
+                                          }
+                                        } catch (e) {
+                                          console.error("Error updating localStorage:", e);
+                                        }
+                                        
+                                        showToast("Comment deleted successfully", "success");
+                                      } catch (error) {
+                                        console.error("Error deleting comment:", error);
+                                        showToast("Failed to delete comment", "error");
+                                      }
+                                    }
+                                  }}
+                                  className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                  title="Delete comment"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      )}
+                          </>
+                        )}
+                        {/* Reply Editor for Comment */}
+                        {session && 
+                         openReplyInput === `comment-${comment.id || comment._id}` && 
+                         session.user.email !== comment.authorId && (
+                          <div className="mt-3 ml-10 pl-4 border-l-2 border-blue-200 space-y-3">
+                            <div className="mb-2 px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg">
+                              <p className="text-xs font-semibold text-blue-700">
+                                Replying to <span className="font-bold">@{comment.authorId}</span>
+                              </p>
+                            </div>
+                            <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 transition-all duration-200">
+                              <Editor
+                                apiKey={
+                                  process.env.NEXT_PUBLIC_TINYMCE_API_KEY ||
+                                  "no-api-key"
+                                }
+                                value={replyContent[`comment-${comment.id || comment._id}`] || ""}
+                                onEditorChange={(content) =>
+                                  setReplyContent({
+                                    ...replyContent,
+                                    [`comment-${comment.id || comment._id}`]: content,
+                                  })
+                                }
+                                init={{
+                                  height: 150,
+                                  menubar: false,
+                                  statusbar: false,
+                                  plugins: ["lists", "link"],
+                                  toolbar: "bold italic | bullist numlist | link",
+                                  images_upload_handler: handleImageUpload,
+                                  content_style:
+                                    "body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; margin: 12px; }",
+                                  skin: "oxide",
+                                  content_css: "default",
+                                }}
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() =>
+                                  handleSubmitReply(
+                                    comment.parentType,
+                                    comment.parentId,
+                                    `comment-${comment.id || comment._id}`
+                                  )
+                                }
+                                disabled={submitting || !replyContent[`comment-${comment.id || comment._id}`]?.trim()}
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                              >
+                                {submitting ? "Posting..." : "Post Reply"}
+                              </Button>
+                              <Button
+                                onClick={() =>
+                                  handleCancelReply(`comment-${comment.id || comment._id}`)
+                                }
+                                disabled={submitting}
+                                variant="outline"
+                                size="sm"
+                                className="px-4 py-1.5 rounded-lg text-xs font-semibold"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Facebook-style Threaded Replies - Nested under parent comment */}
+                        {(commentReplies[comment.id || comment._id] || []).length > 0 && (
+                          <div className="mt-3 ml-10 space-y-3">
+                            {(commentReplies[comment.id || comment._id] || []).map((reply, replyIndex) => (
+                              <div
+                                key={reply.id || `reply-${comment.id}-${replyIndex}`}
+                                className="pl-4 border-l-2 border-blue-200 bg-gray-50 rounded-r-lg py-2"
+                              >
+                                <div className="flex items-start gap-2">
+                                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-300 to-indigo-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span className="text-white text-[10px] font-bold">
+                                      {reply.authorId?.charAt(0)?.toUpperCase() || "U"}
+                                    </span>
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-xs font-semibold text-gray-900">
+                                        {reply.authorId}
+                                      </span>
+                                      <span className="text-[10px] text-gray-500">
+                                        {new Date(reply.createdAt).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    <div
+                                      className="text-gray-700 leading-relaxed text-xs mb-2"
+                                      dangerouslySetInnerHTML={{ __html: reply.content }}
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          const replyId = reply.id || reply._id;
+                                          if (replyId && !votingRefs.current.comments[replyId]) {
+                                            handleCommentLike(replyId, e);
+                                          }
+                                        }}
+                                        disabled={
+                                          votingInProgress.comments[reply.id || reply._id] ||
+                                          votingRefs.current.comments[reply.id || reply._id]
+                                        }
+                                        className={`flex items-center gap-1 text-[10px] font-medium transition-all px-1.5 py-0.5 rounded ${
+                                          reply.userVote === "like"
+                                            ? "text-blue-600 bg-blue-50"
+                                            : "text-gray-500 hover:text-blue-600 hover:bg-gray-50"
+                                        } ${
+                                          votingInProgress.comments[reply.id || reply._id]
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : "cursor-pointer"
+                                        }`}
+                                      >
+                                        <ThumbsUp className="w-2.5 h-2.5" />
+                                        <span>{reply.likes || 0}</span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          const replyId = reply.id || reply._id;
+                                          if (replyId && !votingRefs.current.comments[replyId]) {
+                                            handleCommentDislike(replyId, e);
+                                          }
+                                        }}
+                                        disabled={
+                                          votingInProgress.comments[reply.id || reply._id] ||
+                                          votingRefs.current.comments[reply.id || reply._id]
+                                        }
+                                        className={`flex items-center gap-1 text-[10px] font-medium transition-all px-1.5 py-0.5 rounded ${
+                                          reply.userVote === "dislike"
+                                            ? "text-red-600 bg-red-50"
+                                            : "text-gray-500 hover:text-red-600 hover:bg-gray-50"
+                                        } ${
+                                          votingInProgress.comments[reply.id || reply._id]
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : "cursor-pointer"
+                                        }`}
+                                      >
+                                        <ThumbsDown className="w-2.5 h-2.5" />
+                                        <span>{reply.dislikes || 0}</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -941,7 +1694,7 @@ export default function QuestionDetailPage() {
                           [questionId]: true,
                         })
                       }
-                      className="text-blue-600 border-2 border-blue-300 hover:bg-blue-50 font-semibold rounded-xl px-4 py-2 transition-all duration-200 hover:shadow-md"
+                      className="text-blue-600 border-2 border-blue-300 bg-blue-50 font-semibold rounded-xl px-4 py-2 transition-all duration-200 hover:shadow-md"
                     >
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Add a Comment
@@ -1075,80 +1828,141 @@ export default function QuestionDetailPage() {
             )}
 
             {/* Answer Content */}
-            <div
-              className="prose prose-slate max-w-none mb-6 text-gray-700"
-              dangerouslySetInnerHTML={{ __html: answer.content }}
-            />
+            {editingAnswer === (answer.id || answer._id) ? (
+              <div className="space-y-4 mb-6">
+                <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 transition-all duration-200">
+                  <Editor
+                    apiKey={
+                      process.env.NEXT_PUBLIC_TINYMCE_API_KEY || "no-api-key"
+                    }
+                    value={editAnswerContent}
+                    onEditorChange={setEditAnswerContent}
+                    init={{
+                      height: 350,
+                      min_height: 250,
+                      menubar: false,
+                      statusbar: false,
+                      plugins: [
+                        "advlist",
+                        "autolink",
+                        "lists",
+                        "link",
+                        "image",
+                        "charmap",
+                        "preview",
+                        "anchor",
+                        "searchreplace",
+                        "visualblocks",
+                        "code",
+                        "fullscreen",
+                        "insertdatetime",
+                        "media",
+                        "table",
+                        "code",
+                        "help",
+                        "wordcount",
+                      ],
+                      toolbar:
+                        "undo redo | blocks | " +
+                        "bold italic forecolor | alignleft aligncenter " +
+                        "alignright alignjustify | bullist numlist outdent indent | " +
+                        "removeformat | help | code",
+                      images_upload_handler: handleImageUpload,
+                      content_style:
+                        "body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; margin: 16px; }",
+                      skin: "oxide",
+                      content_css: "default",
+                    }}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleSaveAnswer}
+                    disabled={submitting || !editAnswerContent.trim()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50"
+                  >
+                    {submitting ? "Saving..." : "Save Changes"}
+                  </Button>
+                  <Button
+                    onClick={handleCancelEditAnswer}
+                    disabled={submitting}
+                    variant="outline"
+                    className="px-6 py-2 rounded-lg font-semibold"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="prose prose-slate max-w-none mb-6 text-gray-700"
+                dangerouslySetInnerHTML={{ __html: answer.content }}
+              />
+            )}
 
-            {/* Facebook-style Like / Dislike */}
-            <div className="flex items-center gap-6 mb-6">
-              {/* Like */}
+            {/* Facebook-style Like / Dislike - Inline, smaller */}
+            <div className="flex items-center gap-3 mt-3 mb-4">
               <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  const answerId = answer?.id || answer?._id;
                   if (
-                    answer?.id &&
-                    !votingInProgress.answers[answer.id] &&
-                    !votingRefs.current.answers[answer.id]
+                    answerId &&
+                    !votingInProgress.answers[answerId] &&
+                    !votingRefs.current.answers[answerId]
                   ) {
-                    handleAnswerUseful(answer.id, "useful");
+                    handleAnswerUseful(answerId, "useful");
                   }
                 }}
                 disabled={
-                  votingInProgress.answers[answer.id] ||
-                  votingRefs.current.answers[answer.id]
+                  !(answer?.id || answer?._id) ||
+                  votingInProgress.answers[answer?.id || answer?._id] ||
+                  votingRefs.current.answers[answer?.id || answer?._id]
                 }
-                className={`flex items-center gap-2 text-sm font-semibold transition-all ${
+                className={`flex items-center gap-1.5 text-xs font-medium transition-all px-2 py-1 rounded-md ${
                   answer.userVote === "useful"
-                    ? "text-green-600"
-                    : "text-gray-500 hover:text-green-600"
+                    ? "text-green-600 bg-green-50"
+                    : "text-gray-500 hover:text-green-600 hover:bg-gray-50"
                 } ${
-                  votingInProgress.answers[answer.id]
+                  votingInProgress.answers[answer?.id || answer?._id]
                     ? "opacity-50 cursor-not-allowed"
                     : "cursor-pointer"
                 }`}
               >
-                <ThumbsUp className="w-5 h-5" />
-                Like
+                <ThumbsUp className="w-3.5 h-3.5" />
+                <span>{(answer?.usefulCount || 0) - (answer?.notUsefulCount || 0)}</span>
               </button>
 
-              {/* Vote Count */}
-              <span className="text-sm font-bold text-gray-700">
-                {(answer?.usefulCount || 0) -
-                  (answer?.notUsefulCount || 0)}{" "}
-                votes
-              </span>
-
-              {/* Dislike */}
               <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  const answerId = answer?.id || answer?._id;
                   if (
-                    answer?.id &&
-                    !votingInProgress.answers[answer.id] &&
-                    !votingRefs.current.answers[answer.id]
+                    answerId &&
+                    !votingInProgress.answers[answerId] &&
+                    !votingRefs.current.answers[answerId]
                   ) {
-                    handleAnswerUseful(answer.id, "notUseful");
+                    handleAnswerUseful(answerId, "notUseful");
                   }
                 }}
                 disabled={
-                  votingInProgress.answers[answer.id] ||
-                  votingRefs.current.answers[answer.id]
+                  !(answer?.id || answer?._id) ||
+                  votingInProgress.answers[answer?.id || answer?._id] ||
+                  votingRefs.current.answers[answer?.id || answer?._id]
                 }
-                className={`flex items-center gap-2 text-sm font-semibold transition-all ${
+                className={`flex items-center gap-1.5 text-xs font-medium transition-all px-2 py-1 rounded-md ${
                   answer.userVote === "notUseful"
-                    ? "text-red-600"
-                    : "text-gray-500 hover:text-red-600"
+                    ? "text-red-600 bg-red-50"
+                    : "text-gray-500 hover:text-red-600 hover:bg-gray-50"
                 } ${
-                  votingInProgress.answers[answer.id]
+                  votingInProgress.answers[answer?.id || answer?._id]
                     ? "opacity-50 cursor-not-allowed"
                     : "cursor-pointer"
                 }`}
               >
-                <ThumbsDown className="w-5 h-5" />
-                Dislike
+                <ThumbsDown className="w-3.5 h-3.5" />
               </button>
             </div>
 
@@ -1169,17 +1983,601 @@ export default function QuestionDetailPage() {
                 </div>
               </div>
 
-              {isQuestionOwner && !answer.accepted && (
-                <Button
-                  size="sm"
-                  onClick={() => handleAcceptAnswer(answer.id)}
-                  className="border-2 border-green-500 text-green-600 hover:bg-green-50 rounded-xl font-semibold"
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Accept Answer
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {session && session.user.email !== answer.authorId && (
+                  <button
+                    onClick={() => handleReplyToAnswer(answer)}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                    title="Reply to answer"
+                  >
+                    <Reply className="w-4 h-4" />
+                  </button>
+                )}
+                {session?.user?.email === answer.authorId && !editingAnswer && (
+                  <>
+                    <button
+                      onClick={() => handleEditAnswer(answer)}
+                      className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                      title="Edit answer"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (confirm("Are you sure you want to delete this answer?")) {
+                          try {
+                            const answerId = answer.id || answer._id;
+                            await authFetch(`/api/answers/${answerId}`, {
+                              method: "DELETE",
+                            });
+                            // Remove answer from state directly
+                            const updatedAnswers = answers.filter(
+                              (a) => (a.id || a._id) !== answerId
+                            );
+                            setAnswers(updatedAnswers);
+                            showToast("Answer deleted successfully", "success");
+                          } catch (error) {
+                            console.error("Error deleting answer:", error);
+                            showToast("Failed to delete answer", "error");
+                          }
+                        }
+                      }}
+                      className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      title="Delete answer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+                {isQuestionOwner && !answer.accepted && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleAcceptAnswer(answer.id || answer._id)}
+                    className="border-2 border-green-500 text-green-600 hover:bg-green-50 rounded-xl font-semibold"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Accept Answer
+                  </Button>
+                )}
+              </div>
             </div>
+            
+            {/* Reply Editor for Answer */}
+            {session && 
+             openReplyInput === `answer-${answer.id || answer._id}` && 
+             session.user.email !== answer.authorId && (
+              <div className="mt-4 pt-4 border-t-2 border-gray-200 space-y-3">
+                <div className="mb-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm font-semibold text-blue-700">
+                    Replying to <span className="font-bold">@{answer.authorId}</span>'s answer
+                  </p>
+                </div>
+                <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 transition-all duration-200">
+                  <Editor
+                    apiKey={
+                      process.env.NEXT_PUBLIC_TINYMCE_API_KEY || "no-api-key"
+                    }
+                    value={replyContent[`answer-${answer.id || answer._id}`] || ""}
+                    onEditorChange={(content) =>
+                      setReplyContent({
+                        ...replyContent,
+                        [`answer-${answer.id || answer._id}`]: content,
+                      })
+                    }
+                    init={{
+                      height: 200,
+                      menubar: false,
+                      statusbar: false,
+                      plugins: ["lists", "link"],
+                      toolbar: "bold italic | bullist numlist | link",
+                      images_upload_handler: handleImageUpload,
+                      content_style:
+                        "body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; margin: 12px; }",
+                      skin: "oxide",
+                      content_css: "default",
+                    }}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const answerId = answer.id || answer._id;
+                      const replyKey = `answer-${answerId}`;
+                      handleSubmitReply("answer", answerId, replyKey);
+                    }}
+                    disabled={
+                      submitting || 
+                      !replyContent[`answer-${answer.id || answer._id}`] || 
+                      !replyContent[`answer-${answer.id || answer._id}`].replace(/<[^>]*>/g, "").trim()
+                    }
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50"
+                  >
+                    {submitting ? "Posting..." : "Post Reply"}
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      handleCancelReply(`answer-${answer.id || answer._id}`)
+                    }
+                    disabled={submitting}
+                    variant="outline"
+                    size="sm"
+                    className="px-4 py-2 rounded-lg text-xs font-semibold"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Display Replies/Comments for this Answer */}
+            {(comments[answer.id || answer._id] || []).length > 0 && (
+              <div className="mt-6 pt-6 border-t-2 border-gray-200">
+                <div className="mb-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                    Replies ({comments[answer.id || answer._id].length})
+                  </h4>
+                </div>
+                <div className="space-y-3">
+                  {(comments[answer.id || answer._id] || []).map((comment, commentIndex) => (
+                    <div
+                      key={comment.id || `answer-comment-${answer.id || answer._id}-${commentIndex}`}
+                      className="bg-white border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-50 transition-all duration-200"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-white text-xs font-bold">
+                            {comment.authorId?.charAt(0)?.toUpperCase() || "U"}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-xs font-semibold text-gray-900">
+                              {comment.authorId}
+                            </span>
+                            {comment.parentType === "answer" && (
+                              <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full font-medium">
+                                Replying to @{answer.authorId}
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              {new Date(comment.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {editingComment === (comment.id || comment._id) ? (
+                            <div className="space-y-3 mb-2">
+                              <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 transition-all duration-200">
+                                <Editor
+                                  apiKey={
+                                    process.env.NEXT_PUBLIC_TINYMCE_API_KEY ||
+                                    "no-api-key"
+                                  }
+                                  value={editCommentContent}
+                                  onEditorChange={setEditCommentContent}
+                                  init={{
+                                    height: 150,
+                                    menubar: false,
+                                    statusbar: false,
+                                    plugins: ["lists", "link"],
+                                    toolbar: "bold italic | bullist numlist | link",
+                                    images_upload_handler: handleImageUpload,
+                                    content_style:
+                                      "body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; margin: 12px; }",
+                                    skin: "oxide",
+                                    content_css: "default",
+                                  }}
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={handleSaveComment}
+                                  disabled={submitting || !editCommentContent.trim()}
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                >
+                                  {submitting ? "Saving..." : "Save"}
+                                </Button>
+                                <Button
+                                  onClick={handleCancelEditComment}
+                                  disabled={submitting}
+                                  variant="outline"
+                                  size="sm"
+                                  className="px-4 py-1.5 rounded-lg text-xs font-semibold"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div
+                                className="text-gray-800 leading-relaxed mb-2 text-sm"
+                                dangerouslySetInnerHTML={{ __html: comment.content }}
+                              />
+                              <div className="flex items-center justify-between mt-2">
+                                {session && (
+                                  <div
+                                    className="flex items-center gap-3"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const commentId = comment.id || comment._id;
+                                        if (
+                                          commentId &&
+                                          !votingRefs.current.comments[commentId]
+                                        ) {
+                                          handleCommentLike(commentId, e);
+                                        }
+                                      }}
+                                      disabled={
+                                        votingInProgress.comments[
+                                          comment.id || comment._id
+                                        ] ||
+                                        votingRefs.current.comments[
+                                          comment.id || comment._id
+                                        ]
+                                      }
+                                      className={`flex items-center gap-1.5 text-xs font-medium transition-all px-2 py-1 rounded-md ${
+                                        comment.userVote === "like"
+                                          ? "text-blue-600 bg-blue-50"
+                                          : "text-gray-500 hover:text-blue-600 hover:bg-gray-50"
+                                      } ${
+                                        votingInProgress.comments[
+                                          comment.id || comment._id
+                                        ]
+                                          ? "opacity-50 cursor-not-allowed"
+                                          : "cursor-pointer"
+                                      }`}
+                                    >
+                                      <ThumbsUp className="w-3 h-3" />
+                                      <span>{comment.likes || 0}</span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const commentId = comment.id || comment._id;
+                                        if (
+                                          commentId &&
+                                          !votingRefs.current.comments[commentId]
+                                        ) {
+                                          handleCommentDislike(commentId, e);
+                                        }
+                                      }}
+                                      disabled={
+                                        votingInProgress.comments[
+                                          comment.id || comment._id
+                                        ] ||
+                                        votingRefs.current.comments[
+                                          comment.id || comment._id
+                                        ]
+                                      }
+                                      className={`flex items-center gap-1.5 text-xs font-medium transition-all px-2 py-1 rounded-md ${
+                                        comment.userVote === "dislike"
+                                          ? "text-red-600 bg-red-50"
+                                          : "text-gray-500 hover:text-red-600 hover:bg-gray-50"
+                                      } ${
+                                        votingInProgress.comments[
+                                          comment.id || comment._id
+                                        ]
+                                          ? "opacity-50 cursor-not-allowed"
+                                          : "cursor-pointer"
+                                      }`}
+                                    >
+                                      <ThumbsDown className="w-3 h-3" />
+                                      <span>{comment.dislikes || 0}</span>
+                                    </button>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2">
+                                  {session && session.user.email !== comment.authorId && (
+                                    <button
+                                      onClick={() => handleReplyToComment(comment)}
+                                      className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                      title="Reply to comment"
+                                    >
+                                      <Reply className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                  {session?.user?.email === comment.authorId && !editingComment && (
+                                    <>
+                                      <button
+                                        onClick={() => handleEditComment(comment)}
+                                        className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                        title="Edit comment"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={async () => {
+                                          if (confirm("Are you sure you want to delete this comment?")) {
+                                            try {
+                                              const commentId = comment.id || comment._id;
+                                              await authFetch(`/api/comments/${commentId}`, {
+                                                method: "DELETE",
+                                              });
+                                              // Remove comment from state directly
+                                              const updatedComments = { ...comments };
+                                              Object.keys(updatedComments).forEach((key) => {
+                                                updatedComments[key] = updatedComments[key].filter(
+                                                  (c) => (c.id || c._id) !== commentId
+                                                );
+                                              });
+                                              setComments(updatedComments);
+                                              
+                                              // Remove from commentReplies if it exists there
+                                              const updatedReplies = { ...commentReplies };
+                                              Object.keys(updatedReplies).forEach((parentId) => {
+                                                updatedReplies[parentId] = updatedReplies[parentId].filter(
+                                                  (c) => (c.id || c._id) !== commentId
+                                                );
+                                              });
+                                              setCommentReplies(updatedReplies);
+                                              
+                                              // Remove from localStorage
+                                              const storageKey = `commentReplies_${questionId}`;
+                                              try {
+                                                const stored = localStorage.getItem(storageKey);
+                                                if (stored) {
+                                                  const storedReplies = JSON.parse(stored);
+                                                  delete storedReplies[commentId];
+                                                  localStorage.setItem(storageKey, JSON.stringify(storedReplies));
+                                                }
+                                              } catch (e) {
+                                                console.error("Error updating localStorage:", e);
+                                              }
+                                              
+                                              showToast("Comment deleted successfully", "success");
+                                            } catch (error) {
+                                              console.error("Error deleting comment:", error);
+                                              showToast("Failed to delete comment", "error");
+                                            }
+                                          }
+                                        }}
+                                        className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                        title="Delete comment"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          {/* Reply Editor for Comment */}
+                          {session && 
+                           openReplyInput === `comment-${comment.id || comment._id}` && 
+                           session.user.email !== comment.authorId && (
+                            <div className="mt-3 ml-10 pl-4 border-l-2 border-blue-200 space-y-3">
+                              <div className="mb-2 px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-xs font-semibold text-blue-700">
+                                  Replying to <span className="font-bold">@{comment.authorId}</span>
+                                </p>
+                              </div>
+                              <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 transition-all duration-200">
+                                <Editor
+                                  apiKey={
+                                    process.env.NEXT_PUBLIC_TINYMCE_API_KEY ||
+                                    "no-api-key"
+                                  }
+                                  value={replyContent[`comment-${comment.id || comment._id}`] || ""}
+                                  onEditorChange={(content) =>
+                                    setReplyContent({
+                                      ...replyContent,
+                                      [`comment-${comment.id || comment._id}`]: content,
+                                    })
+                                  }
+                                  init={{
+                                    height: 150,
+                                    menubar: false,
+                                    statusbar: false,
+                                    plugins: ["lists", "link"],
+                                    toolbar: "bold italic | bullist numlist | link",
+                                    images_upload_handler: handleImageUpload,
+                                    content_style:
+                                      "body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; margin: 12px; }",
+                                    skin: "oxide",
+                                    content_css: "default",
+                                  }}
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() =>
+                                    handleSubmitReply(
+                                      comment.parentType,
+                                      comment.parentId,
+                                      `comment-${comment.id || comment._id}`
+                                    )
+                                  }
+                                  disabled={submitting || !replyContent[`comment-${comment.id || comment._id}`]?.trim()}
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                >
+                                  {submitting ? "Posting..." : "Post Reply"}
+                                </Button>
+                                <Button
+                                  onClick={() =>
+                                    handleCancelReply(`comment-${comment.id || comment._id}`)
+                                  }
+                                  disabled={submitting}
+                                  variant="outline"
+                                  size="sm"
+                                  className="px-4 py-1.5 rounded-lg text-xs font-semibold"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Facebook-style Threaded Replies - Nested under parent comment */}
+                          {(commentReplies[comment.id || comment._id] || []).length > 0 && (
+                            <div className="mt-3 ml-10 space-y-3">
+                              {(commentReplies[comment.id || comment._id] || []).map((reply, replyIndex) => (
+                                <div
+                                  key={reply.id || `reply-${comment.id}-${replyIndex}`}
+                                  className="pl-4 border-l-2 border-blue-200 bg-gray-50 rounded-r-lg py-2"
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-300 to-indigo-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                      <span className="text-white text-[10px] font-bold">
+                                        {reply.authorId?.charAt(0)?.toUpperCase() || "U"}
+                                      </span>
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-xs font-semibold text-gray-900">
+                                          {reply.authorId}
+                                        </span>
+                                        <span className="text-[10px] text-gray-500">
+                                          {new Date(reply.createdAt).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                      <div
+                                        className="text-gray-700 leading-relaxed text-xs mb-2"
+                                        dangerouslySetInnerHTML={{ __html: reply.content }}
+                                      />
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const replyId = reply.id || reply._id;
+                                            if (replyId && !votingRefs.current.comments[replyId]) {
+                                              handleCommentLike(replyId, e);
+                                            }
+                                          }}
+                                          disabled={
+                                            votingInProgress.comments[reply.id || reply._id] ||
+                                            votingRefs.current.comments[reply.id || reply._id]
+                                          }
+                                          className={`flex items-center gap-1 text-[10px] font-medium transition-all px-1.5 py-0.5 rounded ${
+                                            reply.userVote === "like"
+                                              ? "text-blue-600 bg-blue-50"
+                                              : "text-gray-500 hover:text-blue-600 hover:bg-gray-50"
+                                          } ${
+                                            votingInProgress.comments[reply.id || reply._id]
+                                              ? "opacity-50 cursor-not-allowed"
+                                              : "cursor-pointer"
+                                          }`}
+                                        >
+                                          <ThumbsUp className="w-2.5 h-2.5" />
+                                          <span>{reply.likes || 0}</span>
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const replyId = reply.id || reply._id;
+                                            if (replyId && !votingRefs.current.comments[replyId]) {
+                                              handleCommentDislike(replyId, e);
+                                            }
+                                          }}
+                                          disabled={
+                                            votingInProgress.comments[reply.id || reply._id] ||
+                                            votingRefs.current.comments[reply.id || reply._id]
+                                          }
+                                          className={`flex items-center gap-1 text-[10px] font-medium transition-all px-1.5 py-0.5 rounded ${
+                                            reply.userVote === "dislike"
+                                              ? "text-red-600 bg-red-50"
+                                              : "text-gray-500 hover:text-red-600 hover:bg-gray-50"
+                                          } ${
+                                            votingInProgress.comments[reply.id || reply._id]
+                                              ? "opacity-50 cursor-not-allowed"
+                                              : "cursor-pointer"
+                                          }`}
+                                        >
+                                          <ThumbsDown className="w-2.5 h-2.5" />
+                                          <span>{reply.dislikes || 0}</span>
+                                        </button>
+                                        {session && session.user.email !== reply.authorId && (
+                                          <button
+                                            onClick={() => handleReplyToComment(reply)}
+                                            className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                                            title="Reply to comment"
+                                          >
+                                            <Reply className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                        {session?.user?.email === reply.authorId && (
+                                          <>
+                                            <button
+                                              onClick={() => handleEditComment(reply)}
+                                              className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                                              title="Edit comment"
+                                            >
+                                              <Edit className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                              onClick={async () => {
+                                                if (confirm("Are you sure you want to delete this comment?")) {
+                                                  try {
+                                                    const replyId = reply.id || reply._id;
+                                                    await authFetch(`/api/comments/${replyId}`, {
+                                                      method: "DELETE",
+                                                    });
+                                                    // Remove from commentReplies
+                                                    const updatedReplies = { ...commentReplies };
+                                                    Object.keys(updatedReplies).forEach((parentId) => {
+                                                      updatedReplies[parentId] = updatedReplies[parentId].filter(
+                                                        (c) => (c.id || c._id) !== replyId
+                                                      );
+                                                    });
+                                                    setCommentReplies(updatedReplies);
+                                                    const updatedComments = { ...comments };
+                                                    Object.keys(updatedComments).forEach((key) => {
+                                                      updatedComments[key] = updatedComments[key].filter(
+                                                        (c) => (c.id || c._id) !== replyId
+                                                      );
+                                                    });
+                                                    setComments(updatedComments);
+                                                    const storageKey = `commentReplies_${questionId}`;
+                                                    try {
+                                                      const stored = localStorage.getItem(storageKey);
+                                                      if (stored) {
+                                                        const storedReplies = JSON.parse(stored);
+                                                        delete storedReplies[replyId];
+                                                        localStorage.setItem(storageKey, JSON.stringify(storedReplies));
+                                                      }
+                                                    } catch (e) {
+                                                      console.error("Error updating localStorage:", e);
+                                                    }
+                                                    
+                                                    showToast("Comment deleted successfully", "success");
+                                                  } catch (error) {
+                                                    console.error("Error deleting comment:", error);
+                                                    showToast("Failed to delete comment", "error");
+                                                  }
+                                                }
+                                              }}
+                                              className="p-1 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                              title="Delete comment"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}
@@ -1205,7 +2603,7 @@ export default function QuestionDetailPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowAnswerEditor(true)}
-                    className="text-blue-600 border-2 border-blue-300 hover:bg-blue-50 font-bold rounded-xl px-5 py-2 shadow-sm hover:shadow-md transition-all duration-200"
+                    className="text-blue-600 border-2 border-blue-300 bg-blue-50  font-bold rounded-xl px-5 py-2 shadow-sm hover:shadow-md transition-all duration-200"
                   >
                     <MessageSquare className="w-4 h-4 mr-2" />
                     Write an Answer

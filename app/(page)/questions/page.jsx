@@ -17,9 +17,7 @@ import {
 } from "lucide-react";
 import {
   Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+  CardContent
 } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -35,15 +33,11 @@ export default function QuestionsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Use refs for synchronous tracking to prevent rapid clicks
   const votingRefs = useRef({});
-
-  // Track expanded descriptions
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
   // Toast notifications
   const { toast, showToast } = useToast();
-
   const toggleDescription = (questionId, e) => {
     e.stopPropagation();
     setExpandedDescriptions((prev) => ({
@@ -160,17 +154,36 @@ export default function QuestionsPage() {
     setQuestions(updatedQuestions);
 
     try {
-      await authFetch(`/api/questions/${questionId}/vote`, {
+      const response = await authFetch(`/api/questions/${questionId}/vote`, {
         method: "POST",
         body: JSON.stringify({ voteType }),
       });
-      fetchQuestions();
-      showToast(
-        voteType === "upvote"
-          ? "Upvoted successfully!"
-          : "Downvoted successfully!",
-        "success"
-      );
+      
+      if (response.ok) {
+        // Update state directly from API response instead of refetching
+        const updatedQuestion = await response.json();
+        const finalQuestions = [...questions];
+        const finalQuestionIndex = finalQuestions.findIndex(
+          (q) => (q.id || q._id) === questionId
+        );
+        if (finalQuestionIndex !== -1) {
+          finalQuestions[finalQuestionIndex] = {
+            ...finalQuestions[finalQuestionIndex],
+            upvotes: updatedQuestion.upvotes || newUpvotes,
+            downvotes: updatedQuestion.downvotes || newDownvotes,
+            userVote: updatedQuestion.userVote || newUserVote,
+          };
+          setQuestions(finalQuestions);
+        }
+        showToast(
+          voteType === "upvote"
+            ? "Upvoted successfully!"
+            : "Downvoted successfully!",
+          "success"
+        );
+      } else {
+        throw new Error("Failed to vote");
+      }
     } catch (error) {
       console.error("Error voting:", error);
       // Revert on error
@@ -238,9 +251,9 @@ export default function QuestionsPage() {
                 key={i}
                 className="bg-white border border-gray-200 shadow-sm rounded-2xl animate-pulse"
               >
-                <CardContent className="p-6">
-                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                <CardContent className="p-4">
+                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2 "></div>
                   <div className="h-4 bg-gray-200 rounded w-2/3"></div>
                 </CardContent>
               </Card>
@@ -278,7 +291,6 @@ export default function QuestionsPage() {
                 >
                   <div className="p-5 sm:p-6">
                     <div className="flex items-start gap-4">
-                      {/* Main Content - 80% */}
                       <div className="flex-1 min-w-0" style={{ width: "80%" }}>
                         {/* Question Title - Clickable */}
                         <h2
@@ -288,7 +300,6 @@ export default function QuestionsPage() {
                           {question.title}
                         </h2>
 
-                        {/* Description Preview with Expand/Collapse */}
                         <div className="mb-4">
                           <div
                             className={`text-gray-600 leading-relaxed text-sm transition-all duration-300 ${
