@@ -42,9 +42,7 @@ export default function EcoAuditor() {
             <Leaf fill="currentColor" className="w-6 h-6 md:w-8 md:h-8" />
             <span>EcoAudit</span>
           </div>
-          <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider">
-            Beta 2026
-          </div>
+       
         </div>
       </div>
 

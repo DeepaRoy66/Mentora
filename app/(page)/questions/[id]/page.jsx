@@ -27,6 +27,7 @@ import {
 import { Button } from "../../../components/ui/button";
 import { authFetch, authFetchWithFormData } from "@/lib/api";
 import { useToast, Toast } from "../../../components/ui/toast";
+import Loading from "@/app/components/loading";
 
 export default function QuestionDetailPage() {
   const { data: session } = useSession();
@@ -953,7 +954,7 @@ export default function QuestionDetailPage() {
 
 
   if (loading) {
-    return <div className="container mx-auto p-8 text-center">Loading...</div>;
+    return <Loading/>;
   }
 
   if (!question) {

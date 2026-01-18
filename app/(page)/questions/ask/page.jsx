@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "../../../components/ui/card";
 import { authFetch, authFetchWithFormData } from "@/lib/api";
+import Loading from "@/app/components/loading";
 
 export default function AskQuestionPage() {
   const { data: session, status } = useSession();
@@ -23,7 +24,7 @@ export default function AskQuestionPage() {
   const [loading, setLoading] = useState(false);
 
   if (status === "loading") {
-    return <div className="container mx-auto p-8 text-center">Loading...</div>;
+    return <Loading/>;
   }
 
   if (!session) {

@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "../../components/ui/card";
 import { authFetch } from "@/lib/api";
+import Loading from "@/app/components/loading";
 
 export default function BadgesPage() {
   const { data: session, status } = useSession();
@@ -55,7 +56,7 @@ export default function BadgesPage() {
   };
 
   if (status === "loading" || loading) {
-    return <div className="container mx-auto p-8 text-center">Loading...</div>;
+    return  <Loading/>;
   }
 
   if (!session) {

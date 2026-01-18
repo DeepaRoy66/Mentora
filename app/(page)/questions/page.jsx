@@ -23,6 +23,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { authFetch } from "@/lib/api";
 import { useToast, Toast } from "../../components/ui/toast";
+import Loading from "@/app/components/loading";
 
 export default function QuestionsPage() {
   const { data: session, status } = useSession();
@@ -203,7 +204,7 @@ export default function QuestionsPage() {
   };
 
   if (status === "loading") {
-    return <div className="container mx-auto p-8 text-center">Loading...</div>;
+    return <Loading />;
   }
 
   return (

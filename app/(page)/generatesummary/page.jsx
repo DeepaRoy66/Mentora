@@ -10,8 +10,6 @@ export default function StudyAssistant() {
   // State Management
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [resultText, setResultText] = useState(''); 
-  const [quizData, setQuizData] = useState([]); 
   const [activeCategory, setActiveCategory] = useState(null); // 'summary' or 'qa'
   
   // Results State
@@ -24,11 +22,13 @@ export default function StudyAssistant() {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [visibleHints, setVisibleHints] = useState({});
+  const [visibleAnswers, setVisibleAnswers] = useState({});
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
-  const [visibleAnswers, setVisibleAnswers] = useState({}); 
 
   // Refs
   const fileInputRef = useRef(null);
+
+  // --- Handlers ---
 
   const handleFileClick = () => {
     fileInputRef.current.click();
@@ -333,7 +333,13 @@ export default function StudyAssistant() {
                     </div>
                   ))}
                   {!submitted ? (
-                    <button onClick={handleSubmit} className="w-full py-3 md:py-3.5 bg-indigo-600 text-white rounded-md text-base font-semibold cursor-pointer hover:bg-indigo-700 shadow-md">Submit Quiz</button>
+                    <button 
+                      onClick={handleSubmit} 
+                      disabled={submittingQuiz}
+                      className="w-full py-3 md:py-3.5 bg-indigo-600 text-white rounded-md text-base font-semibold cursor-pointer hover:bg-indigo-700 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                      {submittingQuiz ? 'Submitting...' : 'Submit Quiz'}
+                    </button>
                   ) : (
                     <div className="text-center text-xl md:text-2xl font-bold my-5">Score: {score} / {quizData.length}</div>
                   )}
