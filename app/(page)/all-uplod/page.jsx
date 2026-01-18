@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import Loading from "@/app/components/loading";
 
 export default function PublicUploadsList() {
   const ITEMS_PER_PAGE = 20; // 20 PDFs per page
@@ -23,7 +24,7 @@ export default function PublicUploadsList() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-10">Loading community uploads...</div>
+    return <Loading/>
   }
 
   // Calculate pagination

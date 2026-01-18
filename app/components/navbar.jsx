@@ -46,7 +46,7 @@ export function Navbar() {
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/trending") 
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/trending`) 
         if (res.ok) {
           const data = await res.json()
           if (data.categories && data.categories.length > 0) {

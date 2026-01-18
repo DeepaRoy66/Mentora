@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "../components/ui/button" // Ensure this path is correct for your project
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
+import Loading from "../components/loading"
 
 export default function LandingPage() {
   // Pagination
@@ -67,7 +68,7 @@ export default function LandingPage() {
           className="relative rounded-2xl bg-white p-4 sm:p-6 md:p-8 border border-gray-200 shadow-sm"
         >
           {loading ? (
-            <div className="text-center py-10">Loading community uploads...</div>
+            <Loading/>
           ) : (
             <>
               {/* Grid: 1 col mobile, 2 cols tablet, 3 cols desktop */}

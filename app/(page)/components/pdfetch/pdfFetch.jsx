@@ -64,7 +64,7 @@ export default function PdfFetch({ uploads: initialUploads, currentPage: initial
       </div>
 
       {/* Upload List */}
-      {loading ? (
+      {loading? (
         <div className="text-center text-gray-500">Loading...</div>
       ) : (
         <div className="space-y-4">

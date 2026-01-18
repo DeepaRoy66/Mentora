@@ -22,6 +22,7 @@
     "moongoose": "^0.0.5",
     "next": "14.2.35",
     "next-auth": "^4.24.13",
+    "nextjs-toploader": "^3.9.17",
     "pdfjs-dist": "^5.4.530",
     "qrcode.react": "^4.2.0",
     "react": "^18",
