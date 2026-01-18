@@ -14,13 +14,10 @@ export default function JoinPage() {
   const [error, setError] = useState("");
   const [alreadyJoined, setAlreadyJoined] = useState(false);
 
-  // 1. Persistence Fix: Check if user already exists for this session
   useEffect(() => {
     const savedUid = localStorage.getItem("quiz_uid");
     const savedName = localStorage.getItem("quiz_name");
     
-    // If they have a UID and are on this session's join page, 
-    // offer to take them straight to the match
     if (savedUid && savedName) {
       setAlreadyJoined(true);
       setName(savedName);
@@ -42,17 +39,16 @@ export default function JoinPage() {
       });
 
       if (!res.ok) {
-        throw new Error("Session not found, full, or already started.");
+        const errData = await res.json();
+        throw new Error(errData.detail || "Session not found, full, or already started.");
       }
 
       const data = await res.json();
 
-      // Save to LocalStorage so refresh doesn't break the game
       localStorage.setItem("quiz_uid", data.id);
-      localStorage.setItem("quiz_role", data.role);
+      localStorage.setItem("quiz_role", data.role); 
       localStorage.setItem("quiz_name", data.name);
 
-      // Go to match
       router.push(`/mcq-contest/match/${params.id}`);
     } catch (err) {
       setError(err.message);
@@ -61,15 +57,53 @@ export default function JoinPage() {
   };
 
   const clearSessionAndRetry = () => {
-    localStorage.clear();
+    localStorage.removeItem("quiz_uid");
+    localStorage.removeItem("quiz_role");
+    localStorage.removeItem("quiz_name");
     setAlreadyJoined(false);
     setName("");
+  };
+
+  // CRITICAL FIX: Rejoin Logic
+  // We MUST hit the API here. This tells the backend "I am back, show me on the leaderboard".
+  // If we skip this, the Admin won't see the user.
+  const handleRejoin = async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const savedUid = localStorage.getItem("quiz_uid");
+      const savedRole = localStorage.getItem("quiz_role") || "player";
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mcq/session/${params.id}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, role: savedRole, uid: savedUid }), // PASS UID!
+      });
+
+      if (!res.ok) {
+        // If session cancelled or user deleted, treat as new join
+        const errData = await res.json();
+        throw new Error(errData.detail || "Session ended. Please refresh.");
+      }
+
+      const data = await res.json();
+
+      // Update LocalStorage with fresh data from server (Restores Score/Role)
+      localStorage.setItem("quiz_uid", data.id);
+      localStorage.setItem("quiz_role", data.role);
+      localStorage.setItem("quiz_name", data.name);
+
+      router.push(`/mcq-contest/match/${params.id}`);
+    } catch (err) {
+      setError(err.message);
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Branding / Logo Area */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-black text-white tracking-tight mb-2">
             MENTORA<span className="text-blue-500">.</span>
@@ -80,7 +114,6 @@ export default function JoinPage() {
         </div>
 
         <div className="bg-white rounded-3xl p-8 shadow-2xl overflow-hidden relative">
-          {/* Progress Overlay if Loading */}
           {isLoading && (
             <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
               <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-2" />
@@ -89,17 +122,17 @@ export default function JoinPage() {
           )}
 
           {alreadyJoined ? (
-            /* REFRESH FIX: UI for users already logged in */
             <div className="text-center animate-in fade-in slide-in-from-bottom-4">
               <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <User size={32} />
               </div>
               <h2 className="text-2xl font-bold text-slate-900">Welcome back, {name}</h2>
-              <p className="text-slate-500 mt-2 mb-8">You are already registered for this session.</p>
+              <p className="text-slate-500 mt-2 mb-8">Reconnecting to session...</p>
               
               <div className="space-y-3">
+                {/* FIX: Call handleRejoin (which hits API) instead of just router.push */}
                 <button
-                  onClick={() => router.push(`/mcq-contest/match/${params.id}`)}
+                  onClick={handleRejoin}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-200"
                 >
                   Enter Match <ArrowRight size={20} />
@@ -113,7 +146,6 @@ export default function JoinPage() {
               </div>
             </div>
           ) : (
-            /* STANDARD JOIN FORM */
             <form onSubmit={handleJoin} className="space-y-6">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-slate-900">Join the Contest</h2>
@@ -184,9 +216,7 @@ export default function JoinPage() {
           )}
         </div>
         
-        <p className="text-center text-slate-500 mt-8 text-sm">
-          Protected by Mentora Secure-Session &copy; 2026
-        </p>
+   
       </div>
     </div>
   );

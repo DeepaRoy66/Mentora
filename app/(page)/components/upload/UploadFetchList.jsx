@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BiCloudUpload, BiDotsVerticalRounded, BiTrash, BiDownload, BiFileBlank, BiSelectMultiple, BiLeftArrow, BiRightArrow, BiEdit } from 'react-icons/bi';
 import { useSession } from "next-auth/react";
+import Loading from '@/app/components/loading';
 
 export default function UploadFetchList({ categories, initialUploads, initialPage, initialTotalPages, onUploadClick }) {
   const { data: session } = useSession();   
@@ -177,7 +178,7 @@ export default function UploadFetchList({ categories, initialUploads, initialPag
       {/* LIST ITEMS */}
       <div className="flex flex-col pb-20">
         {loading ? (
-          <div className="p-10 text-center text-gray-500 text-sm bg-white">Updating...</div>
+          <Loading/>
         ) : list.length === 0 ? (
           <div className="p-10 text-center text-gray-500 text-sm bg-white">No files found.</div>
         ) : (
