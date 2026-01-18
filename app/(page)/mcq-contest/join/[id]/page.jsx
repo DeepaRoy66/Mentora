@@ -216,9 +216,7 @@ export default function JoinPage() {
           )}
         </div>
         
-        <p className="text-center text-slate-500 mt-8 text-sm">
-          Protected by Mentora Secure-Session &copy; 2026
-        </p>
+   
       </div>
     </div>
   );

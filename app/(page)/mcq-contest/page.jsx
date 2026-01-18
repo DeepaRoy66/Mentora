@@ -2,13 +2,14 @@
 
 import React, { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Upload, Users, FileQuestion, ArrowRight, Loader2, AlertCircle, Hash } from "lucide-react";
+import { Upload, Users, FileQuestion, ArrowRight, Loader2, AlertCircle, Hash, Copy, Share2, MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function QuizGeneratorPage() {
   const router = useRouter();
 
   const [step, setStep] = useState(1);
+  const [copied, setCopied] = useState(false); // State for copy feedback
 
   const [formData, setFormData] = useState({
     pdfFile: null,
@@ -26,18 +27,47 @@ export default function QuizGeneratorPage() {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      // Update Form Data
       setFormData(prev => ({ ...prev, pdfFile: file }));
-      
-      // Reset State when file changes
       setFormData(prev => ({ ...prev, generatedQuestions: null }));
       setProcessError("");
     }
   };
 
-  // 2. Handle Next Step (Fixed Async Event Handler)
+  // Helper to handle numeric-only text input
+  const handleNumericChange = (e, field) => {
+    // Remove anything that is not a number
+    const value = e.target.value.replace(/[^0-9]/g, "");
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // --- Share Handlers ---
+  const handleCopyLink = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(joinUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    }
+  };
+
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join Quiz Session',
+          text: `Join my quiz session! ID: ${sessionId}`,
+          url: joinUrl,
+        });
+      } catch (err) {
+        console.log('Share canceled');
+      }
+    } else {
+      alert("Sharing not supported on this browser/device.");
+    }
+  };
+
+  // -------------------------
+
   const handleNext = async () => {
-    // Validation
     if (step === 1 && !formData.pdfFile) return alert("Please upload a PDF first.");
     if (step === 2 && !formData.contestantCount) return alert("Enter contestant count.");
 
@@ -57,7 +87,6 @@ export default function QuizGeneratorPage() {
         formDataToApi.append("mode", "mcq");
         formDataToApi.append("mcq_count", formData.mcqCount);
 
-        // API URL updated to match Backend Prefix (/mcq)
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mcq/process_pdf`, {
           method: "POST",
           body: formDataToApi,
@@ -70,9 +99,7 @@ export default function QuizGeneratorPage() {
 
         const data = await res.json();
         
-        // Validate response format
         if (data.data && Array.isArray(data.data)) {
-          // Save questions to state
           setFormData(prev => ({ ...prev, generatedQuestions: data.data }));
           
           // --- PHASE 2: Create the Game Session ---
@@ -82,7 +109,7 @@ export default function QuizGeneratorPage() {
             body: JSON.stringify({
               playerLimit: parseInt(formData.contestantCount),
               questionTime: parseInt(formData.questionTime),
-              questions: data.data // Pass the generated questions to the session
+              questions: data.data
             }),
           });
 
@@ -91,12 +118,8 @@ export default function QuizGeneratorPage() {
           }
 
           const sessionData = await sessionRes.json();
-          
-          // Set Session State
           setSessionId(sessionData.sessionId);
           setJoinUrl(`${window.location.origin}/join?session=${sessionData.sessionId}`);
-          
-          // Automatically advance to Step 4 (QR Code)
           setStep(4);
         } else {
           throw new Error("Invalid response format from server.");
@@ -110,7 +133,6 @@ export default function QuizGeneratorPage() {
         setIsProcessing(false);
       }
     } else {
-      // Standard Next Step for 1 -> 2 -> 3
       setStep(step + 1);
     }
   };
@@ -118,86 +140,91 @@ export default function QuizGeneratorPage() {
   // --- Render Helpers ---
 
   const renderStep1 = () => (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold flex items-center gap-2">
-        <Upload className="w-6 h-6 text-blue-600" /> Upload Question PDF
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold flex items-center gap-2 text-black">
+        <Upload className="w-6 h-6 text-black" /> Upload PDF
       </h2>
       
-      <input
-        type="file"
-        accept=".pdf"
-        onChange={handleFileChange}
-        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-      />
+      <div className="w-full">
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={handleFileChange}
+          className="block w-full text-sm text-black bg-white border border-gray-300 rounded-lg cursor-pointer p-3 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800"
+        />
+      </div>
       
-      {formData.pdfFile && <p className="text-green-600">Selected: {formData.pdfFile.name}</p>}
+      {formData.pdfFile && (
+        <p className="text-black font-medium bg-gray-100 p-2 rounded">
+          Selected: {formData.pdfFile.name}
+        </p>
+      )}
     </div>
   );
 
   const renderStep2 = () => (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold flex items-center gap-2">
-        <Users className="w-6 h-6 text-blue-600" /> Contestant Count
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold flex items-center gap-2 text-black">
+        <Users className="w-6 h-6 text-black" /> Contestant Count
       </h2>
+      
+      <label className="block text-black font-medium">Number of Contestants</label>
       <input
-        type="number"
-        placeholder="Number of contestants"
+        type="text"
+        inputMode="numeric"
+        placeholder="e.g. 50"
         value={formData.contestantCount}
-        onChange={(e) => setFormData({ ...formData, contestantCount: e.target.value })}
-        className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+        onChange={(e) => handleNumericChange(e, "contestantCount")}
+        className="w-full p-4 bg-white text-black border-2 border-gray-300 rounded-lg outline-none focus:border-black text-lg"
       />
     </div>
   );
 
   const renderStep3 = () => (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold flex items-center gap-2">
-        <Hash className="w-6 h-6 text-blue-600" /> MCQ Generation
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold flex items-center gap-2 text-black">
+        <Hash className="w-6 h-6 text-black" /> Settings
       </h2>
       
-      {/* MCQ Count Input */}
-      <div className="mb-4">
-        <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Number of MCQs</label>
+      <div>
+        <label className="block text-black font-medium mb-2">Number of MCQs</label>
         <input
-          type="number"
+          type="text"
+          inputMode="numeric"
           placeholder="e.g. 10"
           value={formData.mcqCount}
-          onChange={(e) => setFormData({ ...formData, mcqCount: e.target.value })}
-          className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+          onChange={(e) => handleNumericChange(e, "mcqCount")}
+          className="w-full p-4 bg-white text-black border-2 border-gray-300 rounded-lg outline-none focus:border-black text-lg"
         />
       </div>
 
-      <div className="mb-4">
-        <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Time per question (seconds)</label>
+      <div>
+        <label className="block text-black font-medium mb-2">Time per question (seconds)</label>
         <input
-          type="number"
+          type="text"
+          inputMode="numeric"
           placeholder="30"
           value={formData.questionTime}
-          onChange={(e) => setFormData({ ...formData, questionTime: e.target.value })}
-          className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+          onChange={(e) => handleNumericChange(e, "questionTime")}
+          className="w-full p-4 bg-white text-black border-2 border-gray-300 rounded-lg outline-none focus:border-black text-lg"
         />
       </div>
 
-      {/* Loading Indicator */}
       {isProcessing && (
-        <div className="flex items-center gap-2 text-blue-600 animate-pulse">
+        <div className="flex items-center gap-2 text-black font-medium p-4 bg-gray-100 rounded-lg">
            <Loader2 size={20} className="animate-spin" />
-           <span className="text-sm font-bold">
-             Generating Questions...
-           </span>
+           <span>Generating Questions...</span>
         </div>
       )}
 
-      {/* Success Indicator */}
       {formData.generatedQuestions && !processError && !isProcessing && (
-        <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm border border-green-200">
-          <span className="font-bold">✅ Success! {formData.generatedQuestions.length} Questions Generated.</span>
+        <div className="bg-black text-white p-4 rounded-lg text-sm font-medium">
+          ✅ Success! {formData.generatedQuestions.length} Questions Generated.
         </div>
       )}
 
-      {/* Error Display */}
       {processError && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-200">
+        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg text-sm font-medium">
           <div className="flex items-center gap-2">
             <AlertCircle size={16} />
             <span>{processError}</span>
@@ -209,17 +236,55 @@ export default function QuizGeneratorPage() {
 
   const renderStep4 = () => (
     <div className="text-center space-y-6">
-      <h2 className="text-2xl font-bold text-green-800">Session Created!</h2>
-      <p>Scan QR or open link to join contestants:</p>
-      <div className="flex justify-center bg-white p-4 rounded-lg shadow-sm w-fit mx-auto">
-        <QRCodeSVG value={joinUrl} size={200} />
+      <h2 className="text-2xl font-bold text-black">Session Created!</h2>
+      <p className="text-gray-700">Scan QR or share the link:</p>
+      
+      <div className="flex justify-center bg-white p-6 rounded-lg border-2 border-gray-300 shadow-sm w-fit mx-auto">
+        <QRCodeSVG value={joinUrl} size={200} fgColor="#000000" bgColor="#ffffff" />
       </div>
-      <p className="mt-2 font-mono border rounded px-2 py-1 inline-block">
-        Session ID: {sessionId}
+      
+      <p className="mt-2 font-mono text-black bg-gray-100 border border-gray-300 rounded px-4 py-2 inline-block text-lg">
+        ID: {sessionId}
       </p>
+
+      {/* Share Options */}
+      <div className="grid grid-cols-3 gap-3 pt-4 border-t border-gray-200">
+        
+        {/* 1. Copy Link */}
+        <button
+          onClick={handleCopyLink}
+          className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 transition ${
+            copied ? "border-black bg-black text-white" : "border-gray-300 text-black hover:bg-gray-50"
+          }`}
+        >
+          <Copy size={20} />
+          <span className="text-xs font-bold">{copied ? "Copied!" : "Copy"}</span>
+        </button>
+
+        {/* 2. Native Share (FB, Messenger, etc) */}
+        <button
+          onClick={handleNativeShare}
+          className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 border-black bg-black text-white hover:bg-gray-800 transition"
+        >
+          <Share2 size={20} />
+          <span className="text-xs font-bold">Share</span>
+        </button>
+
+        {/* 3. WhatsApp Direct */}
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(`Join my quiz! ${joinUrl}`)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 border-gray-300 text-black hover:bg-gray-50 transition"
+        >
+          <MessageCircle size={20} />
+          <span className="text-xs font-bold">WhatsApp</span>
+        </a>
+      </div>
+      
       <button
         onClick={() => router.push(`/mcq-contest/${sessionId}`)}
-        className="mt-4 w-full py-3 bg-blue-600 text-white rounded-lg font-semibold"
+        className="mt-4 w-full py-4 bg-black text-white rounded-lg font-bold text-lg hover:bg-gray-800 transition"
       >
         Go to Admin Dashboard
       </button>
@@ -227,8 +292,19 @@ export default function QuizGeneratorPage() {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white p-8 w-full max-w-md rounded-2xl shadow-xl space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="bg-white p-6 w-full max-w-md rounded-xl shadow-lg space-y-6 border border-gray-200">
+        
+        {/* Steps Indicator */}
+        <div className="flex justify-center space-x-2 mb-4">
+            {[1, 2, 3, 4].map((s) => (
+                <div 
+                    key={s} 
+                    className={`h-2 rounded-full transition-all duration-300 ${step >= s ? 'bg-black w-8' : 'bg-gray-300 w-2'}`}
+                ></div>
+            ))}
+        </div>
+
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
@@ -238,17 +314,17 @@ export default function QuizGeneratorPage() {
           <button
             onClick={handleNext}
             disabled={isProcessing || (step === 3 && (!formData.mcqCount || parseInt(formData.mcqCount) <= 0))}
-            className="mt-4 w-full py-3 bg-black text-white rounded-lg font-semibold flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-4 w-full py-4 bg-black text-white rounded-lg font-bold text-lg flex justify-center items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
           >
-            {/* Dynamic Text & Loader */}
-            {isProcessing && step === 3 ? <Loader2 size={18} className="animate-spin" /> : null}
-            <span>{step === 3 ? "Generate Questions" : "Next Step"} <ArrowRight size={18} /></span>
+            {isProcessing && step === 3 ? <Loader2 size={20} className="animate-spin" /> : null}
+            <span>{step === 3 ? "Generate Questions" : "Next Step"} <ArrowRight size={20} /></span>
           </button>
         )}
+        
         {step > 1 && step < 4 && (
           <button
             onClick={() => setStep(step - 1)}
-            className="w-full mt-2 text-gray-500 text-sm hover:underline"
+            className="w-full mt-3 text-gray-600 font-medium text-sm hover:text-black underline"
           >
             Back
           </button>
