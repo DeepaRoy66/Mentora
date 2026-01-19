@@ -33,7 +33,7 @@ export default function ProfilePage() {
 
     // 2. Fetch Stats from PYTHON Backend
     // Must use x-user-email header so Python knows who we are
-    fetch("http://127.0.0.1:8000/api/user-stats", {
+    fetch("${process.env.NEXT_PUBLIC_API_URL}/api/user-stats", {
       headers: { 
         "x-user-email": session.user.email,
       },

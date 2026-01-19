@@ -9,7 +9,7 @@ export default function PublicUploadsList() {
 
   useEffect(() => {
     // PUBLIC FETCH: No Headers sent -> Returns ALL uploads
-    fetch("http://127.0.0.1:8000/api/uploads?category=All&page=1")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/uploads?category=All&page=1`)
       .then(res => res.json())
       .then(result => {
         setData(result.uploads || []);

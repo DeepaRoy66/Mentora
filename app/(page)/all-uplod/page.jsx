@@ -11,7 +11,7 @@ export default function PublicUploadsList() {
   const [page, setPage] = useState(1)        // Current page
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/uploads?category=All")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/uploads?category=All`)
       .then(res => res.json())
       .then(result => {
         setData(result.uploads || [])
