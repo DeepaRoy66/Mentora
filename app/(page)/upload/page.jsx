@@ -8,7 +8,7 @@ async function getData() {
 
   if (!session || !session.user) return defaultData;
 
-  const pythonUrl = "http://127.0.0.1:8000"; 
+  const pythonUrl = `${process.env.NEXT_PUBLIC_API_URL}`; 
 
   try {
     const [upRes, catRes] = await Promise.all([
