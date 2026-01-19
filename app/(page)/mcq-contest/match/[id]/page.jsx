@@ -1,13 +1,13 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Trophy, Users, LayoutList, ShieldAlert, CheckCircle, LogOut, X, AlertTriangle, Clock } from "lucide-react";
+import { Trophy, Users, LayoutList, ShieldAlert, CheckCircle, LogOut, AlertTriangle, Clock } from "lucide-react";
 
 export default function MatchPage() {
   const params = useParams();
   const router = useRouter();
   
-  // --- State (UNCHANGED LOGIC) ---
+  // --- State ---
   const [userData, setUserData] = useState(null);
   const [gameState, setGameState] = useState("WAITING"); 
   const [players, setPlayers] = useState([]);
@@ -20,9 +20,10 @@ export default function MatchPage() {
   
   const [socket, setSocket] = useState(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
-  
-  // NEW: Custom Alert State
   const [customAlert, setCustomAlert] = useState({ isOpen: false, message: "", action: null });
+
+  // FIX: Use useRef to prevent the race condition on render
+  const isLeavingRef = useRef(false);
 
   const syncTimer = (endTime, isBreak = false) => {
     const now = Date.now() / 1000;
@@ -34,41 +35,59 @@ export default function MatchPage() {
     }
   };
 
-  // Helper to clear ALL session data
-  const clearSessionData = () => {
-      localStorage.removeItem("quiz_uid");
-      localStorage.removeItem("quiz_role");
-      localStorage.removeItem("quiz_name");
-      localStorage.removeItem(`admin_uid_${params.id}`);
+  // --- FIX: NUCLEAR STORAGE CLEANER ---
+  // This loops through ALL keys and deletes anything related to the game.
+  // This prevents the "Home Page Loop" caused by leftover session IDs.
+  const nukeStorage = () => {
+    // Specific keys we know about
+    const knownKeys = ["quiz_uid", "quiz_role", "quiz_name", "quiz_sid", "current_match_id", "game_session_id"];
+    knownKeys.forEach(k => localStorage.removeItem(k));
+
+    // Aggressive cleanup: Loop through EVERYTHING in localStorage
+    // This ensures that if you named the key "mcq_id" or "match_123", it still gets deleted.
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes("quiz") || key.includes("admin") || key.includes("match") || key.includes("mcq"))) {
+            localStorage.removeItem(key);
+        }
+    }
   };
 
   const confirmLeave = async () => {
     setShowLeaveModal(false);
-    const uid = localStorage.getItem("quiz_uid");
     
-    // Attempt to notify server
-    try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mcq/session/${params.id}/leave`, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ uid })
-        });
-    } catch (e) {
-        console.error("Leave request failed", e);
-    } finally {
-        // Regardless of API success, clear local data and leave
-        clearSessionData();
-        router.push("/");
+    // 1. LOCK IMMEDIATELY (Stops the useEffect from running logic)
+    isLeavingRef.current = true;
+
+    // 2. KILL SOCKET (Stops server messages)
+    if (socket) {
+        socket.close();
     }
+
+    // 3. NUKE STORAGE (Stops Home Page redirect loops)
+    nukeStorage();
+
+    // 4. HARD REDIRECT
+    // We use window.location.href instead of router.push.
+    // This forces a full page refresh. This kills the React state completely
+    // and guarantees the loop stops.
+    window.location.href = "/"; 
   };
 
   useEffect(() => {
+    // SAFETY: If we flagged as leaving, STOP EVERYTHING
+    if (isLeavingRef.current) return;
+
     const adminUid = localStorage.getItem(`admin_uid_${params.id}`);
     const playerUid = localStorage.getItem("quiz_uid");
     const name = localStorage.getItem("quiz_name") || "Admin";
     const uid = adminUid || playerUid;
 
-    if (!uid) return router.push(`/mcq-contest/join/${params.id}`);
+    // If no UID, push to join (only if we aren't manually leaving)
+    if (!uid && !isLeavingRef.current) {
+        return router.push(`/mcq-contest/join/${params.id}`);
+    }
+    
     setUserData({ uid, name });
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
@@ -79,6 +98,9 @@ export default function MatchPage() {
     const ws = new WebSocket(`${protocol}://${wsHost}/mcq/ws/${params.id}/${uid}`);
 
     ws.onmessage = (event) => {
+      // SAFETY: Check ref first to block zombie messages
+      if (isLeavingRef.current) return; 
+
       const msg = JSON.parse(event.data);
       
       if (msg.type === "INIT") {
@@ -88,13 +110,14 @@ export default function MatchPage() {
         if (me) setUserData(prev => ({ ...prev, role: me.role }));
       } 
       else if (msg.type === "SESSION_CANCELLED") {
-          // Replaced Alert with Custom Alert
           setCustomAlert({ 
               isOpen: true, 
               message: "The admin cancelled the session.", 
               action: () => {
-                  clearSessionData();
-                  router.push("/");
+                  isLeavingRef.current = true;
+                  if (socket) socket.close();
+                  nukeStorage();
+                  window.location.href = "/"; // Use hard redirect here too
               }
           });
       }
@@ -129,11 +152,17 @@ export default function MatchPage() {
     };
     
     setSocket(ws);
-    return () => ws.close();
+    
+    return () => {
+        // Only close if we aren't intentionally leaving
+        if (!isLeavingRef.current) ws.close();
+    };
   }, [params.id]);
 
-  // Timers (UNCHANGED LOGIC)
+  // Timers
   useEffect(() => {
+    if (isLeavingRef.current) return;
+
     if (gameState === "QUESTION" && timeLeft > 0) {
       const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
       return () => clearInterval(timer);
@@ -141,6 +170,8 @@ export default function MatchPage() {
   }, [timeLeft, gameState]);
 
   useEffect(() => {
+    if (isLeavingRef.current) return;
+
     if (gameState === "LEADERBOARD" && breakTimeLeft > 0) {
       const timer = setInterval(() => setBreakTimeLeft(prev => prev - 1), 1000);
       return () => clearInterval(timer);
