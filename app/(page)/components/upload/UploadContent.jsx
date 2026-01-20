@@ -2,6 +2,8 @@
 import { useState, useRef } from "react";
 import UploadList from "./UploadFetchList"; 
 import UploadPdfSection from "./UploadPdfSection";
+export const dynamic = "force-dynamic";
+
 
 export default function UploadContent({ categories, uploads, currentPage, totalPages }) {
   const [showUpload, setShowUpload] = useState(false);

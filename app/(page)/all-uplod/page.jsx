@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Loading from "@/app/components/loading";
+export const dynamic = "force-dynamic";
 
 export default function PublicUploadsList() {
   const ITEMS_PER_PAGE = 20; 
