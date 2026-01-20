@@ -15,7 +15,7 @@ export default function LandingPage() {
   const [page, setPage] = useState(1)
 
   useEffect(() => {
-    fetch("${process.env.NEXT_PUBLIC_API_URL}/api/uploads?category=All")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/uploads?category=All`)
       .then(res => res.json())
       .then(result => {
         setData(result.uploads || [])
