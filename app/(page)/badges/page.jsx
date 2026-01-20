@@ -33,7 +33,7 @@ export default function BadgesPage() {
 
     setLoading(true);
     try {
-      // Fetch contributions and badges
+     
       const [contribRes, badgesRes] = await Promise.all([
         fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/users/${session.user.email}/contributions`
@@ -79,7 +79,7 @@ export default function BadgesPage() {
           Badges & Contributions
         </h1>
 
-        {/* Stats Summary */}
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <Card className="bg-white border border-gray-200 shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300 transform">
             <CardContent className="p-6">
@@ -181,7 +181,6 @@ export default function BadgesPage() {
           </CardContent>
         </Card>
 
-        {/* Earned Badges */}
         <div className="mb-10">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Earned Badges</h2>
           {badges.earned?.length === 0 ? (
@@ -237,7 +236,7 @@ export default function BadgesPage() {
           )}
         </div>
 
-        {/* Locked Badges */}
+        
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Locked Badges</h2>
           {badges.locked?.length === 0 ? (
@@ -249,17 +248,17 @@ export default function BadgesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {badges.locked.map((badge) => {
-                // Calculate progress - match backend ruleType values
+                
                 let progress = 0;
                 let current = 0;
-                const threshold = badge.threshold || 1; // Ensure threshold is at least 1 to avoid division by zero
+                const threshold = badge.threshold || 1; 
 
-                // Ensure contributions is loaded before calculating
+               
                 if (!contributions) {
                   current = 0;
                   progress = 0;
                 } else {
-                  // Ensure we're working with numbers
+                  
                   const contrib = contributions || {};
                   
                   if (badge.ruleType === "points") {

@@ -37,7 +37,7 @@ export default function PdfFetch({ uploads: initialUploads, currentPage: initial
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Uploads</h1>
 
-      {/* Filters */}
+     
       <div className="flex gap-3 mb-6">
         <input
           type="text"
@@ -63,7 +63,7 @@ export default function PdfFetch({ uploads: initialUploads, currentPage: initial
         </button>
       </div>
 
-      {/* Upload List */}
+    
       {loading? (
         <div className="text-center text-gray-500">Loading...</div>
       ) : (
@@ -82,7 +82,7 @@ export default function PdfFetch({ uploads: initialUploads, currentPage: initial
         </div>
       )}
 
-      {/* Pagination */}
+      
       <div className="flex justify-center gap-2 mt-6">
         {Array.from({ length: totalPages }, (_, i) => (
           <button

@@ -29,7 +29,7 @@ export default function ProfilePage() {
   const [uploadedImage, setUploadedImage] = useState(null);
 
   useEffect(() => {
-    // 1. Wait for user to be logged in
+
     if (!session?.user?.email) return;
 
  
@@ -52,7 +52,7 @@ export default function ProfilePage() {
       })
       .catch((err) => console.error("Stats Fetch Error:", err));
 
-    // Fetch detailed contributions
+ 
     if (session?.user?.email) {
       fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/users/${session.user.email}/contributions`
@@ -61,7 +61,6 @@ export default function ProfilePage() {
         .then((data) => setContributions(data))
         .catch((err) => console.error("Contributions Fetch Error:", err));
 
-      // Fetch user's questions and answers
       Promise.all([
         fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/questions?page=1&limit=5`
@@ -71,7 +70,7 @@ export default function ProfilePage() {
         ).then((r) => r.json()),
       ])
         .then(([questionsData]) => {
-          // Filter user's questions and answers (simplified - in production, add authorId filter to API)
+        
           const userQuestions = (questionsData.questions || []).filter(
             (q) => q.authorId === session.user.email
           );
@@ -192,7 +191,7 @@ export default function ProfilePage() {
             </Button>
           </div>
 
-          {/* Contribution Details */}
+        
           {contributions && (
             <div>
               <h2 className="text-2xl font-bold mb-4 text-black">Contribution Details</h2>
@@ -225,7 +224,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* My Questions */}
+  
           {myQuestions.length > 0 && (
             <div>
               <div className="flex justify-between items-center mb-4">

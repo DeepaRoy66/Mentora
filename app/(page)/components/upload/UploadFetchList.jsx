@@ -87,7 +87,6 @@ export default function UploadFetchList({ categories, initialUploads, initialPag
     showNotification(`Deleted ${selectedIds.length} files`, 'success');
   };
 
-  // Helper Functions
   const toggleSelect = (id) => {
     if (selectedIds.includes(id)) { 
       setSelectedIds(selectedIds.filter(sid => sid !== id)); setSelectAll(false); 
@@ -124,7 +123,7 @@ export default function UploadFetchList({ categories, initialUploads, initialPag
         </div>
       )}
 
-      {/* SEARCH BAR */}
+  
       <div className="sticky top-0 bg-white z-20 border-b border-gray-200 p-4 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-sm">
         <div className="relative w-full sm:w-96">
           <input 

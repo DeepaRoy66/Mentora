@@ -15,7 +15,6 @@ export default function EcoAuditor() {
   const [error, setError] = useState("");
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // --- Auth Guard Logic ---
   const checkAuth = (e) => {
     if (status === "unauthenticated") {
       if (e) {
@@ -29,7 +28,7 @@ export default function EcoAuditor() {
   };
 
   const runAudit = async () => {
-    // Check login before allowing the audit
+ 
     if (!checkAuth()) return;
     
     if (!url) return;
@@ -55,8 +54,7 @@ export default function EcoAuditor() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900 pt-24 md:pt-32 pb-20 font-sans">
-      
-      {/* AUTH MODAL POPUP */}
+   
       {showAuthModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full text-center">
@@ -73,7 +71,6 @@ export default function EcoAuditor() {
         </div>
       )}
 
-      {/* Tool Header */}
       <div className={`max-w-7xl mx-auto px-6 mb-8 ${showAuthModal ? 'blur-sm pointer-events-none' : ''}`}>
         <div className="flex justify-between items-center border-b border-dashed border-green-200 pb-4">
           <div className="flex items-center gap-2 font-black text-xl md:text-2xl text-green-700">
@@ -84,7 +81,7 @@ export default function EcoAuditor() {
       </div>
 
       <main className={`max-w-6xl mx-auto px-4 md:px-6 ${showAuthModal ? 'blur-sm pointer-events-none' : ''}`}>
-        {/* Hero Section */}
+    
         <div className="text-center mb-12 md:mb-16">
           <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tight text-slate-900 leading-[1.1]">
             How <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-400 font-serif italic">Green</span> is your Web?
@@ -93,8 +90,6 @@ export default function EcoAuditor() {
             Measure your website&apos;s carbon footprint and discover actionable insights to build a sustainable digital future.
           </p>
         </div>
-
-        {/* Search Bar */}
         <div className="max-w-3xl mx-auto bg-white p-3 rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] border border-slate-100 flex flex-col md:flex-row items-center gap-3 mb-16 relative z-10">
           <div className="pl-4 text-slate-400 hidden md:block">
             <Globe size={24} />
@@ -124,15 +119,12 @@ export default function EcoAuditor() {
             )}
           </button>
         </div>
-
-        {/* Error Message */}
         {error && (
           <div className="max-w-3xl mx-auto bg-red-50 text-red-600 p-4 rounded-2xl mb-10 text-center flex items-center justify-center gap-2">
             <AlertTriangle size={20} /> {error}
           </div>
         )}
 
-        {/* Results Area */}
         {result && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in zoom-in duration-500">
             {/* Grade Card */}
@@ -180,7 +172,6 @@ export default function EcoAuditor() {
               </div>
             </div>
 
-            {/* Technical Issues */}
             {result.issues && result.issues.length > 0 && (
               <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-white p-8 rounded-[32px] shadow-sm border border-red-100">
                 <div className="flex items-center gap-3 text-red-500 font-bold mb-6 text-lg uppercase tracking-tight border-b border-red-50 pb-4">

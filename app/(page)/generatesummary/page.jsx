@@ -28,15 +28,15 @@ export default function StudyAssistant() {
   const [visibleAnswers, setVisibleAnswers] = useState({});
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
 
-  // Refs
+ 
   const fileInputRef = useRef(null);
 
-  // --- Auth Guard Logic ---
+
   const checkAuth = (e) => {
     if (status === 'unauthenticated') {
       if (e) {
         e.preventDefault();
-        e.stopPropagation(); // Stops the click from reaching the hidden input
+        e.stopPropagation(); 
       }
       setShowAuthModal(true);
       return false;
@@ -44,17 +44,16 @@ export default function StudyAssistant() {
     return true;
   };
 
-  // --- Redirection Handler ---
+  
   const handleGoHome = () => {
     setShowAuthModal(false);
     router.push('/'); 
   };
 
-  // --- Handlers ---
+
 
   const handleFileClick = (e) => {
-    // If not logged in, show modal and STOP. 
-    // If logged in, open the file picker.
+   
     if (checkAuth(e)) {
       fileInputRef.current.click();
     }
@@ -153,7 +152,7 @@ export default function StudyAssistant() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex justify-center items-start md:items-center p-4 md:p-6 font-sans text-gray-800">
       
-      {/* AUTH MODAL */}
+  
       {showAuthModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full text-center">
@@ -170,7 +169,7 @@ export default function StudyAssistant() {
         </div>
       )}
 
-      {/* Main Container - removed pointer-events-none */}
+     
       <div className={`w-full max-w-[800px] bg-white rounded-xl shadow-xl overflow-hidden flex flex-col my-4 md:my-0 ${showAuthModal ? 'blur-sm' : ''}`}>
         
         <header className="p-4 md:p-6 border-b border-gray-200 text-center">
@@ -232,7 +231,7 @@ export default function StudyAssistant() {
             </div>
           )}
 
-          {/* Result areas restored exactly */}
+        
           {(resultText || quizData.length > 0 || qaData.length > 0) && (
             <div className="mt-6 md:mt-8">
               {resultText && <div className="bg-slate-50 p-4 md:p-6 rounded-lg leading-relaxed text-sm md:text-base whitespace-pre-wrap max-h-[500px] overflow-y-auto">{resultText}</div>}

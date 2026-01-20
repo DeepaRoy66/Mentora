@@ -5,10 +5,10 @@ import Link from "next/link"
 import Loading from "@/app/components/loading";
 
 export default function PublicUploadsList() {
-  const ITEMS_PER_PAGE = 20; // 20 PDFs per page
-  const [data, setData] = useState([])        // All fetched PDFs
+  const ITEMS_PER_PAGE = 20; 
+  const [data, setData] = useState([])        
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)        // Current page
+  const [page, setPage] = useState(1)       
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/uploads?category=All`)
@@ -27,7 +27,7 @@ export default function PublicUploadsList() {
     return <Loading/>
   }
 
-  // Calculate pagination
+  
   const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE)
   const startIndex = (page - 1) * ITEMS_PER_PAGE
   const endIndex = startIndex + ITEMS_PER_PAGE
@@ -40,13 +40,13 @@ export default function PublicUploadsList() {
         Explore Community Notes
       </h2>
 
-      {/* PDF Grid */}
+    
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {currentPDFs.map(item => (
           <Link key={item._id} href={`/all-uplod/${item._id}`}>
             <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer flex flex-col h-full">
               
-              {/* Top badges */}
+         
               <div className="flex justify-between items-start mb-2">
                 <span className="bg-blue-50 text-blue-600 text-xs px-2 py-1 rounded-full font-medium">
                   {item.category}
@@ -56,13 +56,13 @@ export default function PublicUploadsList() {
                 </span>
               </div>
 
-              {/* Title and description */}
+            
               <h3 className="text-lg font-bold text-gray-800 line-clamp-1">{item.title}</h3>
               <p className="text-sm text-gray-500 mt-2 line-clamp-2">
                 {item.description || "No description provided."}
               </p>
 
-              {/* Uploader */}
+      
               <div className="mt-auto pt-4 text-xs text-gray-400">
                 Uploaded by: <span className="text-gray-600">{item.uploaderEmail.split("@")[0]}</span>
               </div>
@@ -72,7 +72,6 @@ export default function PublicUploadsList() {
         ))}
       </div>
 
-      {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-4 mt-10">
           <button
