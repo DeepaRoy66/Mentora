@@ -17,7 +17,7 @@ import {
   Trophy,
   Swords,
   Leaf,
-  Loader2, // Loading spinner
+  Loader2,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -36,20 +36,21 @@ export function Navbar() {
   const loading = status === "loading";
   const user = session?.user;
 
-  const [trendingTopics, setTrendingTopics] = useState([]);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  
-  // NEW STATE FOR GOOGLE-LEVEL SEARCH
+  // State for Search
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   
+  // State for Trending Categories
+  const [trendingTopics, setTrendingTopics] = useState([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  
   const searchInputRef = useRef(null);
-  const suggestionsRef = useRef(null); // To detect clicks outside
+  const suggestionsRef = useRef(null);
 
-  // --- Fetch Trending Topics ---
+  // --- Fetch Trending Categories (Back to Categories) ---
   useEffect(() => {
     const fetchTrending = async () => {
       try {
@@ -91,7 +92,7 @@ export function Navbar() {
         }
       };
       fetchSuggestions();
-    }, 300); // Wait 300ms after user stops typing
+    }, 300); 
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
@@ -121,7 +122,7 @@ export function Navbar() {
       if (query?.trim()) {
         router.push(`/search?q=${encodeURIComponent(query)}`);
         setIsSearchOpen(false);
-        setSearchQuery(""); // Clear input
+        setSearchQuery(""); 
         setShowSuggestions(false);
       }
     }
@@ -153,9 +154,6 @@ export function Navbar() {
                   "hidden md:flex items-center transition-all duration-300 ease-in-out mr-2 relative",
                   isSearchOpen ? "w-80" : "w-12"
                 )}
-                onBlur={() => {
-                    // Optional: Add blur logic if needed, but clickOutside handles most
-                }}
               >
                 {isSearchOpen ? (
                   <div className="relative w-full animate-in fade-in zoom-in-95 duration-200">
@@ -219,7 +217,7 @@ export function Navbar() {
                 )}
               </div>
 
-              {/* NAV LINKS... (Keep your existing links) */}
+              {/* NAV LINKS */}
               <div className="hidden md:flex items-center gap-1">
                 <Button variant="ghost" asChild className="text-base font-semibold text-gray-700 hover:text-black hover:bg-gray-100/80 h-10 px-4">
                   <Link href="/"><Home className="h-5 w-5 mr-2" />Home</Link>
@@ -248,7 +246,7 @@ export function Navbar() {
 
               <div className="hidden md:block h-8 w-px bg-gray-200 mx-1"></div>
 
-              {/* USER / LOGIN... (Keep your existing code) */}
+              {/* USER / LOGIN */}
               <div className="hidden md:flex items-center">
                 {loading ? (
                   <div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
@@ -279,7 +277,7 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* TRENDING BAR... (Keep existing code) */}
+      {/* TRENDING BAR (CATEGORIES) */}
       {trendingTopics.length > 0 && (
         <div className="w-full bg-white/90 backdrop-blur-xl border-b border-gray-200 h-12 z-40">
           <div className="max-w-7xl mx-auto px-4 h-full flex items-center gap-6 overflow-hidden">
@@ -289,7 +287,12 @@ export function Navbar() {
             </span>
             <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
               {trendingTopics.map((topic) => (
-                <Link key={topic} href={`/search?q=${encodeURIComponent(topic)}`} className="text-sm font-medium text-gray-600 hover:text-black hover:underline cursor-pointer whitespace-nowrap transition-colors">
+                // Clicking a category goes to the search page for that category
+                <Link
+                  key={topic}
+                  href={`/search?q=${encodeURIComponent(topic)}`}
+                  className="text-sm font-medium text-gray-600 hover:text-black hover:underline cursor-pointer whitespace-nowrap transition-colors"
+                >
                   {topic}
                 </Link>
               ))}
