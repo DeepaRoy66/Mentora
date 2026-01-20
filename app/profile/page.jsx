@@ -138,7 +138,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-4 md:mt-0">
-              <Button onClick={() => signOut()} variant="secondary" size="lg">
+              <Button onClick={() => signOut({ callbackUrl: "/",})} variant="secondary" size="lg">
                 <LogOut className="mr-2 h-4 w-4" /> LogOut
               </Button>
             </div>
