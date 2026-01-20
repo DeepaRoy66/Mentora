@@ -33,7 +33,7 @@ export function Navbar() {
   const loading = status === "loading";
   const user = session?.user;
 
-  // Dynamic trending topics (starts empty to hide bar until loaded)
+  // Dynamic trending topics
   const [trendingTopics, setTrendingTopics] = useState([]);
 
   // State management
@@ -61,7 +61,6 @@ export function Navbar() {
         }
       } catch (error) {
         console.error("Failed to fetch trending topics", error);
-        // List remains empty [], and the bar stays hidden
       }
     };
     fetchTrending();
@@ -232,7 +231,7 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* TRENDING BAR - Only renders if topics exist */}
+      {/* TRENDING BAR - Non-clickable labels */}
       {trendingTopics.length > 0 && (
         <div className="w-full bg-white/90 backdrop-blur-xl border-b border-gray-200 h-12 z-40">
           <div className="max-w-7xl mx-auto px-4 h-full flex items-center gap-6 overflow-hidden">
@@ -242,13 +241,15 @@ export function Navbar() {
             </span>
             <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
               {trendingTopics.map((topic) => (
-                <Link
+                /* CHANGED: Replaced Link with span. 
+                   Removed href so it is just a text label.
+                */
+                <span
                   key={topic}
-                  href={`/search?q=${encodeURIComponent(topic)}`}
-                  className="text-sm font-medium text-gray-600 hover:text-black transition-colors whitespace-nowrap"
+                  className="text-sm font-medium text-gray-500 cursor-default whitespace-nowrap"
                 >
                   {topic}
-                </Link>
+                </span>
               ))}
             </div>
           </div>
@@ -259,7 +260,6 @@ export function Navbar() {
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-[calc(72px+48px)] left-0 right-0 border-b border-gray-200 bg-white/95 backdrop-blur-2xl shadow-xl animate-in slide-in-from-top-2">
           <div className="p-5 space-y-5">
-            {/* Mobile Search */}
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
               <Input 
