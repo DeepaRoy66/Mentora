@@ -197,7 +197,7 @@ export function Navbar() {
                 <NavBtn href="/" icon={<Home className="h-5 w-5 mr-2 text-indigo-500" />} label="Home" />
                 <NavBtn href="/upload" icon={<Upload className="h-5 w-5 mr-2 text-orange-500" />} label="Upload" />
                 <NavBtn href="/generatesummary" icon={<FileText className="h-5 w-5 mr-2 text-red-500" />} label="Summary" />
-                <NavBtn href="/questions" icon={<MessageSquare className="h-5 w-5 mr-2 text-cyan-500" />} label="Q&A" />
+                <NavBtn href="/questions" icon={<MessageSquare className="h-5 w-5 mr-2 text-cyan-500" />} label="Mentora-Q" />
                 <NavBtn href="/mcq-contest" icon={<Swords className="h-5 w-5 mr-2 text-rose-500" />} label="MCQ-War" />
                 <NavBtn href="/eco-editor" icon={<Leaf className="h-5 w-5 mr-2 text-emerald-500" />} label="Eco-auditor" />
                 {user && <NavBtn href="/badges" icon={<Trophy className="h-5 w-5 mr-2 text-amber-500" />} label="Badges" />}
