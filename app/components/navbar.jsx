@@ -36,13 +36,13 @@ export function Navbar() {
   const loading = status === "loading";
   const user = session?.user;
 
-  // State for Search
+ 
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   
-  // State for Trending Categories
+ 
   const [trendingTopics, setTrendingTopics] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -50,7 +50,7 @@ export function Navbar() {
   const searchInputRef = useRef(null);
   const suggestionsRef = useRef(null);
 
-  // --- Fetch Trending Categories ---
+
   useEffect(() => {
     const fetchTrending = async () => {
       try {
@@ -66,7 +66,7 @@ export function Navbar() {
     fetchTrending();
   }, []);
 
-  // --- Fetch Suggestions ---
+
   useEffect(() => {
     if (!searchQuery) {
       setSuggestions([]);
@@ -97,7 +97,7 @@ export function Navbar() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  // --- Click Outside Handler ---
+ 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -135,7 +135,7 @@ export function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col font-sans tracking-tight shadow-sm">
-      {/* MAIN NAVBAR */}
+   
       <div className="w-full bg-white/90 backdrop-blur-xl transition-all duration-300 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-[72px] items-center justify-between gap-6">
@@ -146,7 +146,7 @@ export function Navbar() {
 
             <div className="flex items-center gap-3 md:gap-4 flex-1 justify-end">
               
-              {/* SEARCH BAR */}
+           
               <div className={cn(
                   "hidden md:flex items-center transition-all duration-300 ease-in-out mr-2 relative",
                   isSearchOpen ? "w-80" : "w-12"
@@ -192,7 +192,7 @@ export function Navbar() {
                 )}
               </div>
 
-              {/* NAV LINKS */}
+          
               <div className="hidden md:flex items-center gap-1">
                 <NavBtn href="/" icon={<Home className="h-5 w-5 mr-2 text-indigo-500" />} label="Home" />
                 <NavBtn href="/upload" icon={<Upload className="h-5 w-5 mr-2 text-orange-500" />} label="Upload" />
@@ -205,7 +205,7 @@ export function Navbar() {
 
               <div className="hidden md:block h-8 w-px bg-gray-200 mx-1"></div>
 
-              {/* USER / LOGIN */}
+          
               <div className="hidden md:flex items-center">
                 {loading ? (
                   <div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
@@ -236,7 +236,7 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* TRENDING BAR */}
+    
       {trendingTopics.length > 0 && (
         <div className="w-full bg-white/90 backdrop-blur-xl border-b border-gray-200 h-12 z-40">
           <div className="max-w-7xl mx-auto px-4 h-full flex items-center gap-6 overflow-hidden">
@@ -255,7 +255,6 @@ export function Navbar() {
         </div>
       )}
 
-      {/* MOBILE DROPDOWN */}
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-[calc(72px+48px)] left-0 right-0 border-b border-gray-200 bg-white/95 backdrop-blur-2xl shadow-xl animate-in slide-in-from-top-2">
           <div className="p-5 space-y-5">
@@ -307,7 +306,7 @@ export function Navbar() {
   );
 }
 
-// Sub-components to keep clean
+
 function NavBtn({ href, icon, label }) {
   return (
     <Button variant="ghost" asChild className="text-base font-semibold text-gray-700 hover:text-black hover:bg-gray-100/80 h-10 px-4">

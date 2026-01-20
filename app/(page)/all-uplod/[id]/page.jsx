@@ -31,7 +31,6 @@ export default async function SingleUploadPage({ params }) {
   return <PDFViewerLayout item={item} />;
 }
 
-// Client component wrapper to handle PDF fullscreen
 function PDFViewerLayout({ item }) {
   const pdfContainerRef = useRef(null);
   const [isPdfFullscreen, setIsPdfFullscreen] = useState(false);
@@ -75,14 +74,13 @@ function PDFViewerLayout({ item }) {
         </div>
       </nav>
 
-      {/* Main Split Layout */}
+    
       <div className="max-w-[1600px] mx-auto h-[calc(100vh-65px)] p-3 md:p-6">
         <div className="flex flex-col lg:flex-row gap-4 md:gap-6 h-full">
-          
-          {/* LEFT COLUMN: PDF Viewer */}
+        
           <div ref={pdfContainerRef} className="relative w-full lg:w-2/3 h-[60vh] lg:h-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden flex flex-col group">
             
-            {/* PDF Header / Fullscreen Button */}
+           
             <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               <button 
                 onClick={togglePdfFullscreen}
@@ -92,7 +90,6 @@ function PDFViewerLayout({ item }) {
               </button>
             </div>
 
-            {/* Iframe */}
             <iframe 
               src={item.pdfUrl} 
               className="w-full h-full border-none" 
@@ -100,7 +97,7 @@ function PDFViewerLayout({ item }) {
             />
           </div>
 
-          {/* RIGHT COLUMN: AI Study Assistant */}
+        
           <div className="w-full lg:w-1/3 h-full">
              <StudyAssistant pdfUrl={item.pdfUrl} docTitle={item.title} />
           </div>

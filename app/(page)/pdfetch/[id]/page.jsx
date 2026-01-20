@@ -1,12 +1,12 @@
-// app/(page)/pdfetch/[id]/page.jsx
+
 import React from "react";
 import { notFound } from "next/navigation";
 
-// This is a Server Component, so we can fetch data directly
+
 async function getUpload(id) {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/uploads/${id}`, {
-      cache: "no-store", // always fetch fresh data
+      cache: "no-store",
     });
 
     if (!res.ok) return null;
@@ -20,7 +20,7 @@ export default async function UploadDetail({ params }) {
   const upload = await getUpload(params.id);
 
   if (!upload) {
-    // Next.js will show 404 page
+   
     notFound();
   }
 

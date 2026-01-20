@@ -64,9 +64,7 @@ export default function JoinPage() {
     setName("");
   };
 
-  // CRITICAL FIX: Rejoin Logic
-  // We MUST hit the API here. This tells the backend "I am back, show me on the leaderboard".
-  // If we skip this, the Admin won't see the user.
+  
   const handleRejoin = async () => {
     setIsLoading(true);
     setError("");
@@ -82,14 +80,14 @@ export default function JoinPage() {
       });
 
       if (!res.ok) {
-        // If session cancelled or user deleted, treat as new join
+        
         const errData = await res.json();
         throw new Error(errData.detail || "Session ended. Please refresh.");
       }
 
       const data = await res.json();
 
-      // Update LocalStorage with fresh data from server (Restores Score/Role)
+      
       localStorage.setItem("quiz_uid", data.id);
       localStorage.setItem("quiz_role", data.role);
       localStorage.setItem("quiz_name", data.name);
@@ -130,7 +128,7 @@ export default function JoinPage() {
               <p className="text-slate-500 mt-2 mb-8">Reconnecting to session...</p>
               
               <div className="space-y-3">
-                {/* FIX: Call handleRejoin (which hits API) instead of just router.push */}
+              
                 <button
                   onClick={handleRejoin}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-200"

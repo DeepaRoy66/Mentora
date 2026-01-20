@@ -172,11 +172,11 @@ export default function StudyAssistant({ pdfUrl, docTitle }) {
   return (
     <div ref={containerRef} className="relative flex flex-col h-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-lg overflow-hidden transition-colors duration-300">
       
-      {/* Header */}
+   
       <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
-            {/* Replaced BrainCircuit with Brain */}
+           
             <Brain className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
@@ -189,7 +189,7 @@ export default function StudyAssistant({ pdfUrl, docTitle }) {
         </button>
       </div>
 
-      {/* Error Toast */}
+   
       {error && (
         <div className="absolute top-20 left-4 right-4 z-50 animate-fade-in-down">
           <div className="bg-red-50 dark:bg-red-900/90 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-100 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-medium backdrop-blur-sm">
@@ -204,10 +204,10 @@ export default function StudyAssistant({ pdfUrl, docTitle }) {
 
       <div className="p-4 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-slate-900">
         
-        {/* --- MAIN ACTION BUTTONS --- */}
+      
         <div className="grid gap-3 mb-6">
           
-          {/* Summary Button */}
+       
           <button
             onClick={() => toggleCategory('summary')}
             className={`w-full p-4 rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-between group ${
@@ -223,7 +223,7 @@ export default function StudyAssistant({ pdfUrl, docTitle }) {
             {activeCategory === 'summary' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4 opacity-50 group-hover:opacity-100" />}
           </button>
 
-          {/* Q&A Button */}
+        
           <button
             onClick={() => toggleCategory('qa')}
             className={`w-full p-4 rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-between group ${
@@ -233,21 +233,21 @@ export default function StudyAssistant({ pdfUrl, docTitle }) {
             }`}
           >
             <div className="flex items-center gap-3">
-              {/* Replaced MessageSquareQuestion with MessageSquare */}
+            
               <MessageSquare className={`w-5 h-5 ${activeCategory === 'qa' ? 'text-white' : 'text-indigo-500 dark:text-indigo-400'}`} />
               <span>Q&A</span>
             </div>
             {activeCategory === 'qa' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4 opacity-50 group-hover:opacity-100" />}
           </button>
 
-          {/* Quiz Button (Direct) */}
+        
           <button
             onClick={() => processFile('mcq')}
             disabled={loading}
             className="w-full p-4 rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-between group bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800/50 hover:bg-purple-100 dark:hover:bg-purple-900/40 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="flex items-center gap-3">
-              {/* Replaced BrainCircuit with Brain */}
+              
               <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               <span>Create MCQ Quiz</span>
             </div>
@@ -255,7 +255,7 @@ export default function StudyAssistant({ pdfUrl, docTitle }) {
           </button>
         </div>
 
-        {/* --- EXPANDED OPTIONS --- */}
+      
         
         {activeCategory === 'summary' && (
           <div className="flex gap-2 mb-6 animate-fade-in">
@@ -271,7 +271,7 @@ export default function StudyAssistant({ pdfUrl, docTitle }) {
           </div>
         )}
 
-        {/* --- LOADING STATE --- */}
+       
         {loading && (
           <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400 animate-fade-in">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
@@ -279,18 +279,18 @@ export default function StudyAssistant({ pdfUrl, docTitle }) {
           </div>
         )}
 
-        {/* --- RESULTS AREA --- */}
+       
         {(resultText || quizData.length > 0 || qaData.length > 0) && (
           <div className="mt-2 space-y-4">
             
-            {/* Summary Result */}
+           
             {resultText && (
               <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700 leading-relaxed text-sm whitespace-pre-wrap text-gray-800 dark:text-gray-300">
                 {resultText}
               </div>
             )}
 
-            {/* Quiz Result */}
+         
             {quizData.length > 0 && (
               <div className="space-y-4">
                 {quizData.map((q, index) => (
@@ -314,7 +314,7 @@ export default function StudyAssistant({ pdfUrl, docTitle }) {
                   </button>
                 ) : (
                   <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-center">
-                    {/* Replaced CheckCircle2 with CheckCircle */}
+                   
                     <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400 mx-auto mb-2" />
                     <div className="text-green-800 dark:text-green-200 font-bold">Score: {score} / {quizData.length}</div>
                   </div>
@@ -322,7 +322,7 @@ export default function StudyAssistant({ pdfUrl, docTitle }) {
               </div>
             )}
 
-            {/* Q&A Result */}
+          
             {qaData.length > 0 && (
               <div className="space-y-3">
                 {qaData.map((item, index) => (

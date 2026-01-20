@@ -8,7 +8,7 @@ export default function AdminDashboard() {
   const params = useParams();
   const router = useRouter();
   
-  // --- State ---
+  
   const [adminName, setAdminName] = useState("");
   const [isJoined, setIsJoined] = useState(false);
   const [players, setPlayers] = useState([]);
@@ -24,7 +24,7 @@ export default function AdminDashboard() {
   const [socket, setSocket] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
 
-  // --- FIX: Cleanup generic data on session change ---
+  
   useEffect(() => {
 
     localStorage.removeItem("quiz_uid");
@@ -32,7 +32,6 @@ export default function AdminDashboard() {
     localStorage.removeItem("quiz_role");
   }, [params.id]);
 
-  // --- WebSocket Connection ---
   const connectToWebSocket = (uid) => {
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const wsHost = window.location.host.includes('localhost') 
@@ -57,9 +56,9 @@ export default function AdminDashboard() {
         }
       } 
       else if (msg.type === "SESSION_CANCELLED") {
-          // Clean up specific session data
+         
           localStorage.removeItem(`admin_uid_${params.id}`);
-          // Also clean generic data to be safe
+          
           localStorage.removeItem("quiz_uid");
           localStorage.removeItem("quiz_name");
           localStorage.removeItem("quiz_role");
@@ -95,10 +94,8 @@ export default function AdminDashboard() {
       
       const data = await res.json();
       
-      // Save SPECIFIC session data
       localStorage.setItem(`admin_uid_${params.id}`, data.id);
-      
-      // Save GLOBAL generic data for MatchPage usage
+     
       localStorage.setItem("quiz_uid", data.id); 
       localStorage.setItem("quiz_name", data.name);
       localStorage.setItem("quiz_role", data.role);
@@ -171,7 +168,7 @@ export default function AdminDashboard() {
     });
   };
 
-  // --- Render: Login View ---
+  
   if (!isJoined) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
@@ -203,7 +200,7 @@ export default function AdminDashboard() {
     );
   }
 
-  // --- Render: Dashboard ---
+  
   return (
     <div className="min-h-screen bg-white text-black p-6 md:p-12">
       
@@ -240,7 +237,7 @@ export default function AdminDashboard() {
           </button>
         </header>
 
-        {/* Toggle Error Alert */}
+       
         {toggleError && (
             <div className="mb-6 bg-white text-red-600 p-4 rounded-lg text-sm border-2 border-red-600 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                 <AlertTriangle className="text-red-600" size={20} />
@@ -249,10 +246,9 @@ export default function AdminDashboard() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Controls */}
+         
           <div className="lg:col-span-2 space-y-8">
             
-            {/* Match Controls */}
             <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-black flex items-center gap-2">
@@ -263,7 +259,7 @@ export default function AdminDashboard() {
               </div>
               
               <div className="bg-gray-50 border-2 border-black rounded-lg p-8 text-center space-y-6 relative overflow-hidden">
-                {/* Decorative background elements */}
+              
                 <div className="absolute top-0 left-0 w-full h-2 bg-black"></div>
                 
                 <div>
@@ -284,7 +280,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Settings Card */}
+           
             <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">
                 <h3 className="text-2xl font-black mb-6 flex items-center gap-2">
                     <div className="bg-black text-white p-1 rounded"><Settings2 size={20} /></div>
@@ -333,7 +329,7 @@ export default function AdminDashboard() {
 
           </div>
 
-          {/* Right Column: Users */}
+         
           <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 h-fit">
              <h3 className="text-xl font-black text-black mb-6 flex items-center justify-between">
                 <span className="flex items-center gap-2"><Users size={20}/> Users</span>

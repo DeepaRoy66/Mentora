@@ -7,7 +7,7 @@ export default function MatchPage() {
   const params = useParams();
   const router = useRouter();
   
-  // --- State ---
+ 
   const [userData, setUserData] = useState(null);
   const [gameState, setGameState] = useState("WAITING"); 
   const [players, setPlayers] = useState([]);
@@ -22,7 +22,7 @@ export default function MatchPage() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [customAlert, setCustomAlert] = useState({ isOpen: false, message: "", action: null });
 
-  // FIX: Use useRef to prevent the race condition on render
+
   const isLeavingRef = useRef(false);
 
   const syncTimer = (endTime, isBreak = false) => {
@@ -35,16 +35,13 @@ export default function MatchPage() {
     }
   };
 
-  // --- FIX: NUCLEAR STORAGE CLEANER ---
-  // This loops through ALL keys and deletes anything related to the game.
-  // This prevents the "Home Page Loop" caused by leftover session IDs.
+  
   const nukeStorage = () => {
-    // Specific keys we know about
+   
     const knownKeys = ["quiz_uid", "quiz_role", "quiz_name", "quiz_sid", "current_match_id", "game_session_id"];
     knownKeys.forEach(k => localStorage.removeItem(k));
 
-    // Aggressive cleanup: Loop through EVERYTHING in localStorage
-    // This ensures that if you named the key "mcq_id" or "match_123", it still gets deleted.
+  
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && (key.includes("quiz") || key.includes("admin") || key.includes("match") || key.includes("mcq"))) {
@@ -56,26 +53,23 @@ export default function MatchPage() {
   const confirmLeave = async () => {
     setShowLeaveModal(false);
     
-    // 1. LOCK IMMEDIATELY (Stops the useEffect from running logic)
+   
     isLeavingRef.current = true;
 
-    // 2. KILL SOCKET (Stops server messages)
+   
     if (socket) {
         socket.close();
     }
 
-    // 3. NUKE STORAGE (Stops Home Page redirect loops)
+    
     nukeStorage();
 
-    // 4. HARD REDIRECT
-    // We use window.location.href instead of router.push.
-    // This forces a full page refresh. This kills the React state completely
-    // and guarantees the loop stops.
+    
     window.location.href = "/"; 
   };
 
   useEffect(() => {
-    // SAFETY: If we flagged as leaving, STOP EVERYTHING
+    
     if (isLeavingRef.current) return;
 
     const adminUid = localStorage.getItem(`admin_uid_${params.id}`);
@@ -83,7 +77,7 @@ export default function MatchPage() {
     const name = localStorage.getItem("quiz_name") || "Admin";
     const uid = adminUid || playerUid;
 
-    // If no UID, push to join (only if we aren't manually leaving)
+    
     if (!uid && !isLeavingRef.current) {
         return router.push(`/mcq-contest/join/${params.id}`);
     }
@@ -98,7 +92,7 @@ export default function MatchPage() {
     const ws = new WebSocket(`${protocol}://${wsHost}/mcq/ws/${params.id}/${uid}`);
 
     ws.onmessage = (event) => {
-      // SAFETY: Check ref first to block zombie messages
+  
       if (isLeavingRef.current) return; 
 
       const msg = JSON.parse(event.data);
@@ -154,12 +148,12 @@ export default function MatchPage() {
     setSocket(ws);
     
     return () => {
-        // Only close if we aren't intentionally leaving
+        
         if (!isLeavingRef.current) ws.close();
     };
   }, [params.id]);
 
-  // Timers
+  
   useEffect(() => {
     if (isLeavingRef.current) return;
 
@@ -206,7 +200,7 @@ export default function MatchPage() {
             </div>
         )}
 
-        {/* --- HEADER / NAV --- */}
+        
         <div className="fixed top-4 right-4 z-50">
             <button 
                 onClick={() => setShowLeaveModal(true)} 
@@ -216,7 +210,7 @@ export default function MatchPage() {
             </button>
         </div>
 
-        {/* --- LEAVE MODAL --- */}
+        
         {showLeaveModal && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                 <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-sm p-6 text-center">
@@ -232,10 +226,10 @@ export default function MatchPage() {
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8 pt-20">
         
-        {/* MAIN GAME AREA */}
+        
         <div className="lg:col-span-3 space-y-8">
           
-          {/* WAITING STATE */}
+         
           {gameState === "WAITING" && (
             <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-12 text-center">
                <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-black">
@@ -254,7 +248,7 @@ export default function MatchPage() {
             </div>
           )}
 
-          {/* SPECTATOR BANNER */}
+         
           {isSpectator && gameState === "QUESTION" && (
             <div className="bg-amber-100 border-2 border-black rounded-lg p-4 text-center flex items-center justify-center gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <ShieldAlert className="text-amber-700" />
@@ -262,10 +256,10 @@ export default function MatchPage() {
             </div>
           )}
 
-          {/* QUESTION STATE */}
+          
           {!isSpectator && gameState === "QUESTION" && currentQuestion && (
             <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 md:p-12 animate-in zoom-in duration-300 relative overflow-hidden">
-               {/* Top Bar */}
+               
                <div className="flex justify-between items-center mb-8">
                   <div className="bg-black text-white px-4 py-2 rounded font-black text-xs uppercase tracking-wider">
                     Q {currentQuestion.q_num} / {currentQuestion.total}
@@ -276,7 +270,7 @@ export default function MatchPage() {
                   </div>
                </div>
 
-               {/* Question Text */}
+              
                <h2 className="text-3xl md:text-5xl font-black text-black leading-tight mb-10">
                  {currentQuestion.text}
                </h2>
@@ -307,7 +301,7 @@ export default function MatchPage() {
             </div>
           )}
 
-          {/* LEADERBOARD / ROUND RESULT */}
+         
           {gameState === "LEADERBOARD" && (
             <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-10 text-center animate-in fade-in">
                 <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-black">
@@ -316,7 +310,7 @@ export default function MatchPage() {
                 <h2 className="text-2xl font-black mb-2 text-gray-600 uppercase tracking-widest">Round Finished</h2>
                 <p className="text-5xl font-black text-black">Get Ready!</p>
                 
-                {/* Break Timer */}
+                
                 {breakTimeLeft > 0 && (
                     <div className="mt-8 inline-block bg-black text-white px-8 py-4 rounded-lg font-mono font-bold text-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                         Next: {breakTimeLeft}s
@@ -325,11 +319,10 @@ export default function MatchPage() {
             </div>
           )}
 
-          {/* FINISHED STATE */}
+          
           {gameState === "FINISHED" && (
             <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-1000">
-              
-              {/* Winner Card */}
+           
               <div className="bg-yellow-300 border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-12 text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-black"></div>
                 <Trophy className="mx-auto text-yellow-600 drop-shadow-sm mb-6" size={80} />
@@ -346,7 +339,7 @@ export default function MatchPage() {
                 </div>
               </div>
 
-              {/* Question Review */}
+              
               <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">
                 <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-gray-900">
                   <div className="bg-black text-white p-1 rounded"><LayoutList size={20}/></div>
@@ -370,7 +363,7 @@ export default function MatchPage() {
           )}
         </div>
 
-        {/* SIDEBAR LEADERBOARD */}
+       
         <div className="lg:col-span-1">
           <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 sticky top-6">
              <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-black">
