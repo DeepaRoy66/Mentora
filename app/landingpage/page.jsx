@@ -8,7 +8,7 @@ import { Sparkles } from "lucide-react";
 import Loading from "../components/loading";
 
 export default function LandingPage() {
-  // Pagination
+
   const ITEMS_PER_PAGE = 20;
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,20 +33,20 @@ export default function LandingPage() {
   const currentPDFs = data.slice(startIndex, endIndex);
 
   return (
-    // Added overflow-x-hidden to prevent horizontal scroll from blobs
+    
     <div className="min-h-screen bg-[#F5F7FA] relative font-sans text-[#002C5F] overflow-x-hidden">
-      {/* Decorative blobs - Adjusted sizes for mobile vs desktop */}
+  
       <div className="absolute top-[-5%] right-[-10%] w-[300px] h-[300px] md:w-[500px] md:h-[500px] rounded-full bg-blue-100/60 blur-3xl -z-10" />
       <div className="absolute top-[15%] left-[-15%] w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-full bg-yellow-100/40 blur-3xl -z-10" />
       <div className="absolute bottom-[5%] right-[5%] w-[200px] h-[200px] md:w-[300px] md:h-[300px] rounded-full bg-blue-50/50 blur-3xl -z-10" />
 
-      {/* Main content */}
+    
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-28 pb-12 md:pb-20 relative z-10">
-        {/* Header */}
+        
         <div className="mb-8 md:mb-12 text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-2 text-[#0078B4] font-medium mb-2">
             <Sparkles size={18} />
-            Let’s get studying
+            Lets get studying
           </div>
 
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
@@ -58,7 +58,7 @@ export default function LandingPage() {
           </p>
         </div>
 
-        {/* PDF Display */}
+      
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -69,7 +69,7 @@ export default function LandingPage() {
             <Loading />
           ) : (
             <>
-              {/* Grid: 1 col mobile, 2 cols tablet, 3 cols desktop */}
+            
               <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {currentPDFs.map((item) => (
                   <Link
@@ -78,7 +78,7 @@ export default function LandingPage() {
                     className="block h-full"
                   >
                     <div className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm hover:shadow-md transition flex flex-col h-full active:scale-[0.98] transition-transform">
-                      {/* Top */}
+                   
                       <div className="flex justify-between items-start mb-2 text-xs text-gray-500">
                         <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-full whitespace-nowrap">
                           {item.category}
@@ -88,7 +88,7 @@ export default function LandingPage() {
                         </span>
                       </div>
 
-                      {/* Title & description */}
+                   
                       <h3 className="text-base font-semibold text-gray-800 line-clamp-1 break-words">
                         {item.title}
                       </h3>
@@ -96,7 +96,6 @@ export default function LandingPage() {
                         {item.description || "No description provided."}
                       </p>
 
-                      {/* Uploader Section */}
                       <div className="mt-auto pt-4 flex items-center gap-2 border-t border-gray-100">
                         {item.uploaderImage ? (
                           <img
@@ -125,7 +124,7 @@ export default function LandingPage() {
                 ))}
               </div>
 
-              {/* Pagination */}
+          
               {totalPages > 1 && (
                 <div className="flex flex-wrap justify-center items-center gap-4 mt-8">
                   <button
@@ -154,7 +153,7 @@ export default function LandingPage() {
         </motion.div>
       </div>
 
-      {/* CTA Section */}
+ 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 md:pb-24 relative z-10">
         <motion.section
           initial={{ opacity: 0, scale: 0.97 }}
@@ -167,7 +166,7 @@ export default function LandingPage() {
             <div className="absolute inset-0 bg-gradient-to-r from-[#002C5F]/95 to-[#0078B4]/90" />
           </div>
 
-          {/* Adjusted padding for mobile vs desktop */}
+     
           <div className="relative z-10 px-6 py-12 md:px-10 md:py-24 text-center text-white">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6">
               Learn <span className="text-yellow-300">smarter</span>, not harder
@@ -182,21 +181,20 @@ export default function LandingPage() {
               size="lg"
               className="bg-yellow-400 text-blue-900 hover:bg-yellow-300 w-full sm:w-auto px-8 md:px-12 py-6 md:py-7 text-base md:text-lg rounded-full font-bold shadow-lg"
             >
-              Join Now — It’s Free
+              Join Now — It is Free
             </Button>
           </div>
         </motion.section>
       </div>
 
-      {/* Footer */}
+   
      <footer className="relative bg-white/80 backdrop-blur-md border-t border-gray-200">
-  {/* Subtle top accent */}
+ 
   <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#0078B4]/40 to-transparent" />
 
   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
     <div className="flex flex-col md:flex-row items-center justify-between gap-10">
 
-      {/* Brand */}
       <div className="flex items-center gap-4">
         <div className="h-12 w-12 bg-gradient-to-br from-[#0078B4] to-[#002C5F] rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shadow-md">
           M
@@ -212,14 +210,13 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Value Proposition */}
+   
       <div className="max-w-md text-center">
         <p className="text-sm sm:text-base text-[#002C5F]/80 leading-relaxed">
            Empowering learners worldwide with expert mentorship 
         </p>
       </div>
 
-      {/* Copyright */}
       <div className="text-sm text-[#002C5F]/60 text-center md:text-right">
         © 2025 <span className="font-medium">Mentora Inc.</span>
         <br className="hidden md:block" />
