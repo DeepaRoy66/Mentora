@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { useRouter } from "next/navigation";
+import Loading from "../components/loading";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -82,7 +83,7 @@ export default function ProfilePage() {
   }, [session]);
 
   if (status === "loading")
-    return <div className="p-10 text-center">Loading profile...</div>;
+    return <Loading/>;
   if (!session)
     return (
       <div className="p-10 text-center">Please log in to view profile.</div>
@@ -138,7 +139,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-4 md:mt-0">
-              <Button onClick={() => signOut()} variant="secondary" size="lg">
+              <Button onClick={() => signOut({ callbackUrl: "/",})} variant="secondary" size="lg">
                 <LogOut className="mr-2 h-4 w-4" /> LogOut
               </Button>
             </div>
