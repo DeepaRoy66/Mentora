@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Button } from "../components/ui/button" // Ensure this path is correct for your project
+import { Button } from "../components/ui/button" 
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
 import Loading from "../components/loading"
