@@ -197,7 +197,7 @@ export default function StudyAssistant() {
       <div className="w-full max-w-[800px] bg-white rounded-xl shadow-xl overflow-hidden flex flex-col my-4 md:my-0">
         
         <header className="p-4 md:p-6 border-b border-gray-200 text-center">
-          <h1 className="text-xl md:text-2xl font-bold text-indigo-600">AI Study Assistant</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-black">Study Assistant</h1>
         </header>
 
         <main className="p-4 md:p-8">
@@ -222,7 +222,7 @@ export default function StudyAssistant() {
             {!file && <p className="text-xs text-gray-400 mt-2">or drag and drop here</p>}
           </div>
 
-          {/* --- MAIN BUTTONS ROW --- */}
+         
           <div className="flex flex-col sm:flex-row gap-2 md:gap-3 my-5 justify-center">
             
             {/* 1. Summary Button (Toggles Options) */}

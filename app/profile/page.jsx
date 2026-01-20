@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { useRouter } from "next/navigation";
+import Loading from "../components/loading";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -31,8 +32,7 @@ export default function ProfilePage() {
     // 1. Wait for user to be logged in
     if (!session?.user?.email) return;
 
-    // 2. Fetch Stats from PYTHON Backend
-    // Must use x-user-email header so Python knows who we are
+ 
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-stats`, {
       headers: { 
         "x-user-email": session.user.email,
@@ -82,7 +82,7 @@ export default function ProfilePage() {
   }, [session]);
 
   if (status === "loading")
-    return <div className="p-10 text-center">Loading profile...</div>;
+    return <Loading/>;
   if (!session)
     return (
       <div className="p-10 text-center">Please log in to view profile.</div>
