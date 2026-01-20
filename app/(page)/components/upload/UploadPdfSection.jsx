@@ -210,15 +210,7 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 bg-[#F3F4F6] rounded-lg border border-gray-300">
-                    <input
-                        type="checkbox"
-                        className="w-5 h-5 accent-blue-600 cursor-pointer"
-                        checked={form.comments} 
-                        onChange={e => setForm({ ...form, comments: e.target.checked })}
-                    />
-                    <label className="text-sm font-bold text-gray-900">Allow user comments</label>
-                </div>
+               
             </div>
 
             <div className="flex gap-4 mt-8">
