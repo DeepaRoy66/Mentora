@@ -7,7 +7,6 @@ export default function MatchPage() {
   const params = useParams();
   const router = useRouter();
   
- 
   const [userData, setUserData] = useState(null);
   const [gameState, setGameState] = useState("WAITING"); 
   const [players, setPlayers] = useState([]);
@@ -22,7 +21,6 @@ export default function MatchPage() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [customAlert, setCustomAlert] = useState({ isOpen: false, message: "", action: null });
 
-
   const isLeavingRef = useRef(false);
 
   const syncTimer = (endTime, isBreak = false) => {
@@ -35,13 +33,10 @@ export default function MatchPage() {
     }
   };
 
-  
   const nukeStorage = () => {
-   
     const knownKeys = ["quiz_uid", "quiz_role", "quiz_name", "quiz_sid", "current_match_id", "game_session_id"];
     knownKeys.forEach(k => localStorage.removeItem(k));
 
-  
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && (key.includes("quiz") || key.includes("admin") || key.includes("match") || key.includes("mcq"))) {
@@ -52,24 +47,17 @@ export default function MatchPage() {
 
   const confirmLeave = async () => {
     setShowLeaveModal(false);
-    
-   
     isLeavingRef.current = true;
 
-   
     if (socket) {
         socket.close();
     }
 
-    
     nukeStorage();
-
-    
     window.location.href = "/"; 
   };
 
   useEffect(() => {
-    
     if (isLeavingRef.current) return;
 
     const adminUid = localStorage.getItem(`admin_uid_${params.id}`);
@@ -77,22 +65,20 @@ export default function MatchPage() {
     const name = localStorage.getItem("quiz_name") || "Admin";
     const uid = adminUid || playerUid;
 
-    
     if (!uid && !isLeavingRef.current) {
         return router.push(`/mcq-contest/join/${params.id}`);
     }
     
     setUserData({ uid, name });
 
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const wsHost = window.location.host.includes('localhost') 
-      ? window.location.host.replace(':3000', ':8000') 
-      : window.location.host;
-      
-    const ws = new WebSocket(`${protocol}://${wsHost}/mcq/ws/${params.id}/${uid}`);
+    // --- UPDATED WEBSOCKET URL LOGIC ---
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const wsBase = apiUrl.replace(/^http/, 'ws');
+    const wsUrl = `${wsBase}/mcq/ws/${params.id}/${uid}`;
+
+    const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event) => {
-  
       if (isLeavingRef.current) return; 
 
       const msg = JSON.parse(event.data);
@@ -111,7 +97,7 @@ export default function MatchPage() {
                   isLeavingRef.current = true;
                   if (socket) socket.close();
                   nukeStorage();
-                  window.location.href = "/"; // Use hard redirect here too
+                  window.location.href = "/"; 
               }
           });
       }
@@ -148,12 +134,10 @@ export default function MatchPage() {
     setSocket(ws);
     
     return () => {
-        
         if (!isLeavingRef.current) ws.close();
     };
-  }, [params.id]);
+  }, [params.id, router]); // Added router to dependency array for best practice
 
-  
   useEffect(() => {
     if (isLeavingRef.current) return;
 
@@ -178,7 +162,6 @@ export default function MatchPage() {
   return (
     <div className="min-h-screen bg-white text-black p-4 font-sans relative">
         
-        {/* --- GLOBAL ALERT POPUP --- */}
         {customAlert.isOpen && (
             <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                 <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-sm p-6 text-center animate-in fade-in zoom-in">
@@ -200,7 +183,6 @@ export default function MatchPage() {
             </div>
         )}
 
-        
         <div className="fixed top-4 right-4 z-50">
             <button 
                 onClick={() => setShowLeaveModal(true)} 
@@ -210,7 +192,6 @@ export default function MatchPage() {
             </button>
         </div>
 
-        
         {showLeaveModal && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                 <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-sm p-6 text-center">
@@ -225,11 +206,7 @@ export default function MatchPage() {
         )}
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8 pt-20">
-        
-        
         <div className="lg:col-span-3 space-y-8">
-          
-         
           {gameState === "WAITING" && (
             <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-12 text-center">
                <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-black">
@@ -248,7 +225,6 @@ export default function MatchPage() {
             </div>
           )}
 
-         
           {isSpectator && gameState === "QUESTION" && (
             <div className="bg-amber-100 border-2 border-black rounded-lg p-4 text-center flex items-center justify-center gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <ShieldAlert className="text-amber-700" />
@@ -256,10 +232,8 @@ export default function MatchPage() {
             </div>
           )}
 
-          
           {!isSpectator && gameState === "QUESTION" && currentQuestion && (
             <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 md:p-12 animate-in zoom-in duration-300 relative overflow-hidden">
-               
                <div className="flex justify-between items-center mb-8">
                   <div className="bg-black text-white px-4 py-2 rounded font-black text-xs uppercase tracking-wider">
                     Q {currentQuestion.q_num} / {currentQuestion.total}
@@ -270,12 +244,10 @@ export default function MatchPage() {
                   </div>
                </div>
 
-              
                <h2 className="text-3xl md:text-5xl font-black text-black leading-tight mb-10">
                  {currentQuestion.text}
                </h2>
 
-               {/* Options */}
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {currentQuestion.options.map((opt, i) => (
                     <button
@@ -283,7 +255,7 @@ export default function MatchPage() {
                       disabled={!!selectedAnswer}
                       onClick={() => {
                         setSelectedAnswer(opt);
-                        socket.send(JSON.stringify({ type: "SUBMIT_ANSWER", answer: opt }));
+                        if (socket) socket.send(JSON.stringify({ type: "SUBMIT_ANSWER", answer: opt }));
                       }}
                       className={`p-6 text-left text-lg font-bold rounded-lg border-2 transition-all duration-100 flex items-center gap-4 ${
                         selectedAnswer === opt 
@@ -301,7 +273,6 @@ export default function MatchPage() {
             </div>
           )}
 
-         
           {gameState === "LEADERBOARD" && (
             <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-10 text-center animate-in fade-in">
                 <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-black">
@@ -309,7 +280,6 @@ export default function MatchPage() {
                 </div>
                 <h2 className="text-2xl font-black mb-2 text-gray-600 uppercase tracking-widest">Round Finished</h2>
                 <p className="text-5xl font-black text-black">Get Ready!</p>
-                
                 
                 {breakTimeLeft > 0 && (
                     <div className="mt-8 inline-block bg-black text-white px-8 py-4 rounded-lg font-mono font-bold text-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -319,10 +289,8 @@ export default function MatchPage() {
             </div>
           )}
 
-          
           {gameState === "FINISHED" && (
             <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-1000">
-           
               <div className="bg-yellow-300 border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-12 text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-black"></div>
                 <Trophy className="mx-auto text-yellow-600 drop-shadow-sm mb-6" size={80} />
@@ -339,7 +307,6 @@ export default function MatchPage() {
                 </div>
               </div>
 
-              
               <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">
                 <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-gray-900">
                   <div className="bg-black text-white p-1 rounded"><LayoutList size={20}/></div>
@@ -363,7 +330,6 @@ export default function MatchPage() {
           )}
         </div>
 
-       
         <div className="lg:col-span-1">
           <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 sticky top-6">
              <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-black">

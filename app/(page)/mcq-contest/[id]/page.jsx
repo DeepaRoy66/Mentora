@@ -8,7 +8,6 @@ export default function AdminDashboard() {
   const params = useParams();
   const router = useRouter();
   
-  
   const [adminName, setAdminName] = useState("");
   const [isJoined, setIsJoined] = useState(false);
   const [players, setPlayers] = useState([]);
@@ -24,21 +23,26 @@ export default function AdminDashboard() {
   const [socket, setSocket] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
 
-  
   useEffect(() => {
-
     localStorage.removeItem("quiz_uid");
     localStorage.removeItem("quiz_name");
     localStorage.removeItem("quiz_role");
   }, [params.id]);
 
+  // --- FIXED WEBSOCKET LOGIC ---
   const connectToWebSocket = (uid) => {
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsHost = window.location.host.includes('localhost') 
-      ? window.location.host.replace(':3000', ':8000') 
-      : window.location.host;
+    // Get the base API URL from your environment variables
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    
+    // Automatically convert http/https to ws/wss
+    const wsBase = apiUrl.replace(/^http/, 'ws');
+    
+    // Construct the full WebSocket URL
+    const wsUrl = `${wsBase}/mcq/ws/${params.id}/${uid}`;
 
-    const ws = new WebSocket(`${protocol}://${wsHost}/mcq/ws/${params.id}/${uid}`);
+    console.log("Connecting to WebSocket at:", wsUrl);
+
+    const ws = new WebSocket(wsUrl);
     
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
@@ -56,9 +60,7 @@ export default function AdminDashboard() {
         }
       } 
       else if (msg.type === "SESSION_CANCELLED") {
-         
           localStorage.removeItem(`admin_uid_${params.id}`);
-          
           localStorage.removeItem("quiz_uid");
           localStorage.removeItem("quiz_name");
           localStorage.removeItem("quiz_role");
@@ -67,6 +69,10 @@ export default function AdminDashboard() {
       else if (msg.type === "NEW_QUESTION") {
         router.push(`/mcq-contest/match/${params.id}`);
       }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket Error:", error);
     };
 
     setSocket(ws);
@@ -95,7 +101,6 @@ export default function AdminDashboard() {
       const data = await res.json();
       
       localStorage.setItem(`admin_uid_${params.id}`, data.id);
-     
       localStorage.setItem("quiz_uid", data.id); 
       localStorage.setItem("quiz_name", data.name);
       localStorage.setItem("quiz_role", data.role);
@@ -168,7 +173,6 @@ export default function AdminDashboard() {
     });
   };
 
-  
   if (!isJoined) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
@@ -180,14 +184,12 @@ export default function AdminDashboard() {
             <h2 className="text-3xl font-black text-black tracking-tight">Admin Entry</h2>
             <p className="text-gray-500 text-sm font-medium">Access the control panel</p>
           </div>
-          
           <input 
             className="w-full p-4 bg-white border-2 border-black rounded-lg text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black text-lg font-bold transition-all"
             placeholder="Enter Admin Name"
             value={adminName}
             onChange={(e) => setAdminName(e.target.value)}
           />
-          
           <button 
             onClick={handleAdminJoin} 
             disabled={loading}
@@ -200,11 +202,8 @@ export default function AdminDashboard() {
     );
   }
 
-  
   return (
     <div className="min-h-screen bg-white text-black p-6 md:p-12">
-      
-      {/* Cancel Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-sm p-6 text-center">
@@ -237,7 +236,6 @@ export default function AdminDashboard() {
           </button>
         </header>
 
-       
         {toggleError && (
             <div className="mb-6 bg-white text-red-600 p-4 rounded-lg text-sm border-2 border-red-600 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                 <AlertTriangle className="text-red-600" size={20} />
@@ -246,9 +244,7 @@ export default function AdminDashboard() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-         
           <div className="lg:col-span-2 space-y-8">
-            
             <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-black flex items-center gap-2">
@@ -259,16 +255,13 @@ export default function AdminDashboard() {
               </div>
               
               <div className="bg-gray-50 border-2 border-black rounded-lg p-8 text-center space-y-6 relative overflow-hidden">
-              
                 <div className="absolute top-0 left-0 w-full h-2 bg-black"></div>
-                
                 <div>
                   <h2 className="text-3xl font-black mb-2">Ready to Launch?</h2>
                   <p className="text-gray-600 font-medium">
                     {players.length} User{players.length !== 1 && 's'} currently in the lobby.
                   </p>
                 </div>
-                
                 <button 
                   onClick={startGame}
                   disabled={loading || players.length === 0}
@@ -280,7 +273,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-           
             <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">
                 <h3 className="text-2xl font-black mb-6 flex items-center gap-2">
                     <div className="bg-black text-white p-1 rounded"><Settings2 size={20} /></div>
@@ -292,7 +284,6 @@ export default function AdminDashboard() {
                             <p className="text-black font-bold text-sm uppercase tracking-wider mb-1">Contestant Limit</p>
                             <p className="text-gray-500 text-xs font-medium">Maximum allowed players</p>
                         </div>
-                        
                         <div className="w-full sm:w-auto">
                             {!isEditingLimit ? (
                                 <div 
@@ -326,10 +317,8 @@ export default function AdminDashboard() {
                     </div>
                 </div>
             </div>
-
           </div>
 
-         
           <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 h-fit">
              <h3 className="text-xl font-black text-black mb-6 flex items-center justify-between">
                 <span className="flex items-center gap-2"><Users size={20}/> Users</span>
@@ -365,7 +354,7 @@ export default function AdminDashboard() {
               
               {players.length === 0 && (
                   <div className="text-center py-8 text-gray-400 text-sm font-medium">
-                      Waiting for players...
+                    Waiting for players...
                   </div>
               )}
             </div>
