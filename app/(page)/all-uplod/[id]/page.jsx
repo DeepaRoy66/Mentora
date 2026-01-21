@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import StudyAssistant from "../generation";
 import { useRef, useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
 
 async function getUpload(id) {
   try {
