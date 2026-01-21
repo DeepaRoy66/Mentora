@@ -29,7 +29,7 @@ export default function UploadFetchList({ categories, initialUploads, initialPag
     setLoading(true);
     try {
      
-      const res = await fetch(`http://localhost:8000/api/my-uploads?search=${query}&category=${cat}&page=${page}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/my-uploads?search=${query}&category=${cat}&page=${page}`, {
         headers: { 'x-user-email': session.user.email }
       });
 
@@ -62,7 +62,7 @@ export default function UploadFetchList({ categories, initialUploads, initialPag
     if (!confirm("Delete this file?")) return;
     
     // Deletion is always specific ID, but we send email for security
-    const res = await fetch(`http://localhost:8000/api/uploads/${id}`, { 
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/uploads/${id}`, { 
         method: 'DELETE',
         headers: { 'x-user-email': session.user.email }
     });
@@ -75,7 +75,7 @@ export default function UploadFetchList({ categories, initialUploads, initialPag
     if (!confirm(`Delete ${selectedIds.length} files?`)) return;
     
     await Promise.all(selectedIds.map(id => 
-        fetch(`http://localhost:8000/api/uploads/${id}`, { 
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/uploads/${id}`, { 
             method: 'DELETE',
             headers: { 'x-user-email': session.user.email }
         })

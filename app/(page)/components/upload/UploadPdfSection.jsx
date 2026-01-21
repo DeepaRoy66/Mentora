@@ -85,7 +85,7 @@ export default function UploadPdfSection({ categories, initialData, initialFile,
                 pdfUrl = publicUrl;
             }
             
-            const baseUrl = "http://localhost:8000";
+            const baseUrl = `${process.env.NEXT_PUBLIC_API_URL}`;
             const url = initialData ? `${baseUrl}/api/uploads/${initialData._id}` : `${baseUrl}/api/uploads`;
             const method = initialData ? 'PUT' : 'POST';
 
